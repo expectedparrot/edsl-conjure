@@ -8,16 +8,16 @@ from edsl.questions.QuestionBase import QuestionBase
 
 from edsl.scenarios.ScenarioList import ScenarioList
 from edsl.surveys.Survey import Survey
-from edsl.conjure.SurveyResponses import SurveyResponses
-from edsl.conjure.naming_utilities import sanitize_string
+from conjure.SurveyResponses import SurveyResponses
+from conjure.naming_utilities import sanitize_string
 from edsl.utilities.utilities import is_valid_variable_name
 
-from edsl.conjure.RawQuestion import RawQuestion
-from edsl.conjure.AgentConstructionMixin import AgentConstructionMixin
+from conjure.RawQuestion import RawQuestion
+from conjure.AgentConstructionMixin import AgentConstructionMixin
 
-from edsl.conjure.QuestionOptionMixin import QuestionOptionMixin
-from edsl.conjure.InputDataMixinQuestionStats import InputDataMixinQuestionStats
-from edsl.conjure.QuestionTypeMixin import QuestionTypeMixin
+from conjure.QuestionOptionMixin import QuestionOptionMixin
+from conjure.InputDataMixinQuestionStats import InputDataMixinQuestionStats
+from conjure.QuestionTypeMixin import QuestionTypeMixin
 
 
 class InputDataABC(

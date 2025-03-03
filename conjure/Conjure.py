@@ -4,15 +4,15 @@ from typing import List, Optional, Dict, Callable
 class Conjure:
     def __new__(cls, datafile_name: str, *args, **kwargs):
         if datafile_name.endswith(".csv"):
-            from edsl.conjure.InputDataCSV import InputDataCSV
+            from conjure.InputDataCSV import InputDataCSV
 
             return InputDataCSV(datafile_name, *args, **kwargs)
         elif datafile_name.endswith(".sav"):
-            from edsl.conjure.InputDataSPSS import InputDataSPSS
+            from conjure.InputDataSPSS import InputDataSPSS
 
             return InputDataSPSS(datafile_name, *args, **kwargs)
         elif datafile_name.endswith(".dta"):
-            from edsl.conjure.InputDataStata import InputDataStata
+            from conjure.InputDataStata import InputDataStata
 
             return InputDataStata(datafile_name, *args, **kwargs)
         else:
@@ -37,13 +37,16 @@ class Conjure:
 
     @classmethod
     def example(cls):
-        from edsl.conjure.InputData import InputDataABC
+        from InputData import InputDataABC
 
         return InputDataABC.example()
 
 
 if __name__ == "__main__":
     pass
+
+    report = Conjure("Reader_Survey_responses_2024-05-16.csv")
+    #report.to_results()
     # import glob
 
     # for file in glob.glob("examples/*"):

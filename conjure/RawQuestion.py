@@ -3,7 +3,7 @@ from typing import List, Optional, Union
 from edsl.questions import QuestionBase
 from edsl import Question
 
-from edsl.conjure.utilities import convert_value
+from conjure.utilities import convert_value
 
 
 @dataclass

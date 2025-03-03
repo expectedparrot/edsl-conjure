@@ -100,7 +100,7 @@ class AgentConstructionMixin:
         seed: str = "edsl",
         dryrun=False,
         disable_remote_cache: bool = False,
-        disable_remote_inference: bool = False,
+        disable_remote_inference: bool = True,
     ) -> Union[Results, None]:
         """Return the results of the survey.
 

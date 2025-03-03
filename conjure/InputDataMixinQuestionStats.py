@@ -1,6 +1,6 @@
 import functools
 from typing import List
-from edsl.conjure.utilities import Missing
+from conjure.utilities import Missing
 from collections import Counter
 
 
