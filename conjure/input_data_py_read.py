@@ -1,9 +1,9 @@
 import pandas as pd
 from typing import List
 
-from edsl.conjure.InputData import InputDataABC
-from edsl.conjure.utilities import convert_value
-from edsl.utilities.utilities import is_valid_variable_name
+from .input_data import InputDataABC
+from .utilities import convert_value
+from edsl.utilities import is_valid_variable_name
 
 try:
     import pyreadstat

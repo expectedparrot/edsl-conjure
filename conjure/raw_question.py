@@ -1,9 +1,9 @@
 from dataclasses import dataclass, field
 from typing import List, Optional, Union
 from edsl.questions import QuestionBase
-from edsl import Question
+from edsl.questions import Question
 
-from conjure.utilities import convert_value
+from .utilities import convert_value
 
 
 @dataclass

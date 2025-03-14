@@ -1,9 +1,9 @@
 import random
 from typing import Generator, List, Optional, Union, Callable
-from edsl.agents.Agent import Agent
-from edsl.agents.AgentList import AgentList
+from edsl.agents import Agent
+from edsl.agents import AgentList
 from edsl.questions import QuestionBase
-from edsl.results.Results import Results
+from edsl.results import Results
 
 
 class AgentConstructionMixin:
@@ -12,7 +12,7 @@ class AgentConstructionMixin:
 
         :param index: The index of the agent to construct.
 
-        >>> from edsl.conjure.InputData import InputDataABC
+        >>> from .input_data import InputDataABC
         >>> id = InputDataABC.example()
         >>> id.agent(0)
         Agent(traits = {'morning': '1', 'feeling': '3'}, codebook = {'morning': 'how are you doing this morning?', 'feeling': 'how are you feeling?'})
@@ -51,7 +51,7 @@ class AgentConstructionMixin:
         :param sample_size: The number of agents to sample.
         :param seed: The seed for the random number generator.
 
-        >>> from edsl.conjure.InputData import InputDataABC
+        >>> from .input_data import InputDataABC
         >>> id = InputDataABC.example()
         >>> al = id.to_agent_list()
         >>> len(al) == id.num_observations
@@ -109,7 +109,7 @@ class AgentConstructionMixin:
         :param seed: The seed for the random number generator.
         :param dryrun: If True, the survey will not be run, but the time to run it will be printed.
 
-        >>> from edsl.conjure.InputData import InputDataABC
+        >>> from .input_data import InputDataABC
         >>> id = InputDataABC.example()
         >>> r = id.to_results(disable_remote_cache = True, disable_remote_inference = True)
         >>> len(r) == id.num_observations
