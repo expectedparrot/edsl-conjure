@@ -1,6 +1,5 @@
 import pytest
-from conjure.Conjure import Conjure
-
+from conjure import Conjure
 
 def test_conjure_csv_creation():
     """Test that Conjure can create an instance from a CSV file."""
@@ -8,7 +7,7 @@ def test_conjure_csv_creation():
     report = Conjure("tests/fixtures/Reader_Survey_responses_sample.csv")
     assert report is not None
     # Verify the correct type was returned
-    from conjure.InputDataCSV import InputDataCSV
+    from conjure.conjure.input_data_csv import InputDataCSV
     assert isinstance(report, InputDataCSV)
 
 

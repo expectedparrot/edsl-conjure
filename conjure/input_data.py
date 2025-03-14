@@ -8,6 +8,8 @@ from edsl.questions import QuestionBase
 from edsl.scenarios import ScenarioList
 from edsl.surveys import Survey
 from edsl.utilities import is_valid_variable_name
+from edsl.dataset import Dataset
+
 
 from .survey_responses import SurveyResponses
 from .naming_utilities import sanitize_string
@@ -402,8 +404,6 @@ class InputDataABC(
         self._raw_data = value
 
     def to_dataset(self) -> "Dataset":
-        from edsl.results import Dataset
-
         dataset_list = []
         for key, value in zip(self.question_names, self.raw_data):
             dataset_list.append({key: value})

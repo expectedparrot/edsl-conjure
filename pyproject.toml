@@ -1,7 +1,16 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "conjure"
 version = "0.1.0"
-description = "Add your description here"
+description = "A plugin for edsl that provides conjure functionality"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "pluggy>=1.0.0",
+]
+
+[project.entry-points.edsl]
+conjure = "conjure.plugin:conjure_plugin"
