@@ -5,19 +5,17 @@ from collections import namedtuple
 from typing import List, Union
 
 from edsl.questions.QuestionBase import QuestionBase
-
 from edsl.scenarios.ScenarioList import ScenarioList
 from edsl.surveys.Survey import Survey
-from conjure.SurveyResponses import SurveyResponses
-from conjure.naming_utilities import sanitize_string
 from edsl.utilities.utilities import is_valid_variable_name
 
-from conjure.RawQuestion import RawQuestion
-from conjure.AgentConstructionMixin import AgentConstructionMixin
-
-from conjure.QuestionOptionMixin import QuestionOptionMixin
-from conjure.InputDataMixinQuestionStats import InputDataMixinQuestionStats
-from conjure.QuestionTypeMixin import QuestionTypeMixin
+from .survey_responses import SurveyResponses
+from .naming_utilities import sanitize_string
+from .raw_question import RawQuestion
+from .agent_construction_mixin import AgentConstructionMixin
+from .question_option_mixin import QuestionOptionMixin
+from .input_data_mixin_question_stats import InputDataMixinQuestionStats
+from .question_type_mixin import QuestionTypeMixin
 
 
 class InputDataABC(

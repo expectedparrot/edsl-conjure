@@ -1,9 +1,13 @@
-# from edsl.conjure.SurveyBuilder import SurveyBuilder
-# from edsl.conjure.SurveyBuilderCSV import SurveyBuilderCSV
-# from edsl.conjure.SurveyBuilderCSV import SurveyBuilderStata
-# from edsl.conjure.SurveyBuilderSPSS import SurveyBuilderSPSS
-# from edsl.conjure.InputData.InputDataSPSS import InputDataSPSS
-# from edsl.conjure.InputData.InputDataCSV import InputDataCSV
-# from edsl.conjure.InputData.InputDataStata import InputDataStata
-# from edsl.conjure.InputData import InputDataSPSS
-# from edsl.conjure.InputData import InputData
+# Import all classes directly to maintain the original API
+from .agent_construction_mixin import AgentConstructionMixin
+from .conjure import Conjure
+from .input_data import InputDataABC
+from .input_data_csv import InputDataCSV
+from .input_data_mixin_question_stats import InputDataMixinQuestionStats
+from .input_data_py_read import InputDataPyRead
+from .input_data_spss import InputDataSPSS
+from .input_data_stata import InputDataStata
+from .question_option_mixin import QuestionOptionMixin
+from .question_type_mixin import QuestionTypeMixin
+from .raw_question import RawQuestion
+from .survey_responses import SurveyResponses

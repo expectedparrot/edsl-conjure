@@ -1,7 +1,7 @@
 from typing import List, Optional
 import pandas as pd
-from conjure.InputData import InputDataABC
-from conjure.utilities import convert_value
+from .input_data import InputDataABC
+from .utilities import convert_value
 
 
 class InputDataCSV(InputDataABC):

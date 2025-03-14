@@ -1,4 +1,4 @@
-from edsl.conjure.InputDataPyRead import InputDataPyRead
+from .input_data_py_read import InputDataPyRead
 
 
 class InputDataStata(InputDataPyRead):

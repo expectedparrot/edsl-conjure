@@ -4,15 +4,15 @@ from typing import List, Optional, Dict, Callable
 class Conjure:
     def __new__(cls, datafile_name: str, *args, **kwargs):
         if datafile_name.endswith(".csv"):
-            from conjure.InputDataCSV import InputDataCSV
+            from .input_data_csv import InputDataCSV
 
             return InputDataCSV(datafile_name, *args, **kwargs)
         elif datafile_name.endswith(".sav"):
-            from conjure.InputDataSPSS import InputDataSPSS
+            from .input_data_spss import InputDataSPSS
 
             return InputDataSPSS(datafile_name, *args, **kwargs)
         elif datafile_name.endswith(".dta"):
-            from conjure.InputDataStata import InputDataStata
+            from .input_data_stata import InputDataStata
 
             return InputDataStata(datafile_name, *args, **kwargs)
         else:

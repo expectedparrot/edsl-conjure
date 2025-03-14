@@ -17,7 +17,7 @@ class QuestionOptionMixin:
     def _get_question_options(self, question_name) -> Union[List[str], None]:
         """Return the options for a question.
 
-        >>> from edsl.conjure.InputData import InputDataABC
+        >>> from conjure import InputDataABC
         >>> id = InputDataABC.example()
         >>> sorted(id._get_question_options('morning'))
         ['1', '4']
