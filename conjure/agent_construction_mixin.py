@@ -1,9 +1,9 @@
 import random
 from typing import Generator, List, Optional, Union, Callable
-from edsl.agents.Agent import Agent
-from edsl.agents.AgentList import AgentList
+from edsl.agents import Agent
+from edsl.agents import AgentList
 from edsl.questions import QuestionBase
-from edsl.results.Results import Results
+from edsl.results import Results
 
 
 class AgentConstructionMixin:

@@ -39,7 +39,8 @@ class QuestionOptionMixin:
 
     def order_options(self) -> None:
         """Order the options for multiple choice questions using an LLM."""
-        from edsl import QuestionList, ScenarioList
+        from edsl.questions import QuestionList
+        from edsl.scenarios import ScenarioList
         import textwrap
 
         scenarios = (

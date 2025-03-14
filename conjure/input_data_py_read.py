@@ -3,7 +3,7 @@ from typing import List
 
 from .input_data import InputDataABC
 from .utilities import convert_value
-from edsl.utilities.utilities import is_valid_variable_name
+from edsl.utilities import is_valid_variable_name
 
 try:
     import pyreadstat

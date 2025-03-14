@@ -4,10 +4,10 @@ from typing import Dict, Callable, Optional, List, Generator, Tuple, Union
 from collections import namedtuple
 from typing import List, Union
 
-from edsl.questions.QuestionBase import QuestionBase
-from edsl.scenarios.ScenarioList import ScenarioList
-from edsl.surveys.Survey import Survey
-from edsl.utilities.utilities import is_valid_variable_name
+from edsl.questions import QuestionBase
+from edsl.scenarios import ScenarioList
+from edsl.surveys import Survey
+from edsl.utilities import is_valid_variable_name
 
 from .survey_responses import SurveyResponses
 from .naming_utilities import sanitize_string
@@ -270,7 +270,7 @@ class InputDataABC(
         old_type = self.question_types[self.question_names.index(question_name)]
         old_options = self.question_options[self.question_names.index(question_name)]
 
-        from edsl import Question
+        from edsl.questions import Question
 
         if new_type not in Question.available():
             raise ValueError(f"Question type {new_type} is not available.")
@@ -402,7 +402,7 @@ class InputDataABC(
         self._raw_data = value
 
     def to_dataset(self) -> "Dataset":
-        from edsl.results.Dataset import Dataset
+        from edsl.results import Dataset
 
         dataset_list = []
         for key, value in zip(self.question_names, self.raw_data):
