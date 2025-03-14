@@ -13,7 +13,7 @@ class InputDataMixinQuestionStats:
         """
         Return a dictionary of statistics for a question.
 
-        >>> from conjure import InputDataABC
+        >>> from .input_data import InputDataABC
         >>> id = InputDataABC.example()
         >>> id._compute_question_statistics('morning')
         {'num_responses': 2, 'num_unique_responses': 2, 'missing': 0, 'unique_responses': ..., 'frac_numerical': 0.0, 'top_5': [('1', 1), ('4', 1)], 'frac_obs_from_top_5': 1.0}
@@ -26,7 +26,7 @@ class InputDataMixinQuestionStats:
         """
         Return the number of responses for each question.
 
-        >>> from conjure import InputDataABC
+        >>> from .input_data import InputDataABC
         >>> id = InputDataABC.example()
         >>> id.num_responses
         [2, 2]
@@ -42,7 +42,7 @@ class InputDataMixinQuestionStats:
         """
         The number of unique responses for each question.
 
-        >>> from conjure import InputDataABC
+        >>> from .input_data import InputDataABC
         >>> id = InputDataABC.example()
         >>> id.num_unique_responses
         [2, 2]
@@ -57,7 +57,7 @@ class InputDataMixinQuestionStats:
     def missing(self) -> List[int]:
         """The number of observations that are missing.
 
-        >>> from conjure import InputDataABC
+        >>> from .input_data import InputDataABC
         >>> input_data = InputDataABC.example(raw_data = [[1,2,Missing().value()]], question_texts = ['A question'])
         >>> input_data.missing
         [1]
@@ -74,7 +74,7 @@ class InputDataMixinQuestionStats:
         """
         The fraction of responses that are numerical for each question.
 
-        >>> from conjure import InputDataABC
+        >>> from .input_data import InputDataABC
         >>> input_data = InputDataABC.example(raw_data = [[1,2,"Poop", 3]], question_texts = ['A question'])
         >>> input_data.frac_numerical
         [0.75]
@@ -91,7 +91,7 @@ class InputDataMixinQuestionStats:
     @functools.lru_cache(maxsize=1)
     def top_k(self, k: int) -> List[List[tuple]]:
         """
-        >>> from conjure import InputDataABC
+        >>> from .input_data import InputDataABC
         >>> input_data = InputDataABC.example(raw_data = [[1,1,1,1,1,2]], question_texts = ['A question'])
         >>> input_data.top_k(1)
         [[(1, 5)]]
@@ -105,7 +105,7 @@ class InputDataMixinQuestionStats:
         """
         Return the fraction of observations that are in the top k for each question.
 
-        >>> from conjure import InputDataABC
+        >>> from .input_data import InputDataABC
         >>> input_data = InputDataABC.example(raw_data = [[1,1,1,1,1,1,1,1,2, 3]], question_names = ['a'])
         >>> input_data.frac_obs_from_top_k(1)
         [0.8]
@@ -133,7 +133,7 @@ class InputDataMixinQuestionStats:
     def unique_responses(self) -> List[List[str]]:
         """Return a list of unique responses for each question.
 
-        >>> from conjure import InputDataABC
+        >>> from .input_data import InputDataABC
         >>> id = InputDataABC.example()
         >>> id.unique_responses
         [..., ...]
@@ -158,7 +158,7 @@ class InputDataMixinQuestionStats:
     def unique_responses_more_than_k(self, k, remove_missing=True) -> List[List[str]]:
         """Return a list of unique responses that occur more than k times for each question.
 
-        >>> from conjure import InputDataABC
+        >>> from .input_data import InputDataABC
         >>> id = InputDataABC.example()
         >>> id.unique_responses_more_than_k(1)
         [[...], [...]]
@@ -176,7 +176,7 @@ class InputDataMixinQuestionStats:
 
 
 if __name__ == "__main__":
-    from conjure import InputDataABC
+    from .input_data import InputDataABC
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
