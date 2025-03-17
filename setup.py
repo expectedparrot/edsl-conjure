@@ -12,6 +12,9 @@ setup(
         "edsl": [
             "conjure = conjure.plugin:conjure_plugin",
         ],
+        "edsl_plugins": [
+            "conjure = conjure.plugin:conjure_plugin",
+        ],
     },
     python_requires=">=3.11",
 )
