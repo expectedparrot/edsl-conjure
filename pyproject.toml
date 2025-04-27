@@ -12,3 +12,4 @@ authors = []
 
 [tool.poetry.dependencies]
 python = ">=3.11"
+edsl = { git = "https://github.com/expectedparrot/edsl.git", rev = "3716ac68c474a35b127052a80c9d8757114e3ccf" }
