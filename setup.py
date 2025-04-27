@@ -1,20 +1,12 @@
+# No longer needed with poetry - kept for backward compatibility
+# This file will eventually be removed
+
 from setuptools import setup, find_packages
 
 setup(
     name="conjure",
     version="0.1.0",
-    description="A plugin for edsl that provides conjure functionality",
+    description="A tool that converts survey data files into edsl objects",
     packages=find_packages(),
-    install_requires=[
-        "pluggy>=1.0.0",
-    ],
-    entry_points={
-        "edsl": [
-            "conjure = conjure.plugin:conjure_plugin",
-        ],
-        "edsl_plugins": [
-            "conjure = conjure.plugin:conjure_plugin",
-        ],
-    },
     python_requires=">=3.11",
 )

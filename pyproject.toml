@@ -1,16 +1,14 @@
 [build-system]
-requires = ["setuptools>=42", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
 
-[project]
+[tool.poetry]
 name = "conjure"
 version = "0.1.0"
-description = "A plugin for edsl that provides conjure functionality"
+description = "A tool that converts survey data files into edsl objects"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = [
-    "pluggy>=1.0.0",
-]
+authors = []
 
-[project.entry-points.edsl]
-conjure = "conjure.plugin:conjure_plugin"
+[tool.poetry.dependencies]
+python = ">=3.11"
