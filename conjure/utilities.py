@@ -3,6 +3,50 @@ import subprocess
 from io import StringIO
 import os
 import pandas as pd
+import warnings
+import sys
+from rich.console import Console
+from rich.panel import Panel
+from rich.text import Text
+
+console = Console(stderr=True)
+
+
+def setup_warning_filter():
+    """Set up a custom warning filter to display nice Rich-formatted notices."""
+    def rich_warning_handler(message, category, filename, lineno, file=None, line=None):
+        warning_text = str(message)
+        
+        # Check if this is the specific EDSL warning we want to format
+        if "is already in use. Renaming to" in warning_text:
+            # Extract the key name from the warning
+            if "Key '" in warning_text:
+                key_part = warning_text.split("Key '")[1].split("' of")[0]
+                title = f"📝 Column Renamed"
+                content = f"The column '[bold cyan]{key_part}[/bold cyan]' was automatically renamed to avoid conflicts."
+                style = "blue"
+            else:
+                title = "📝 Notice"
+                content = warning_text
+                style = "blue"
+        else:
+            # Handle other warnings with a generic format
+            title = "⚠️  Warning"
+            content = warning_text
+            style = "yellow"
+        
+        # Create a rich panel for the warning
+        panel = Panel(
+            Text(content, style="white"),
+            title=title,
+            border_style=style,
+            padding=(0, 1)
+        )
+        
+        console.print(panel)
+    
+    # Set the warning handler
+    warnings.showwarning = rich_warning_handler
 
 
 class ValidFilename:

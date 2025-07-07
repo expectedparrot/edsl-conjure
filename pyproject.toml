@@ -1,15 +1,22 @@
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.poetry]
+[project]
 name = "conjure"
 version = "0.1.0"
 description = "A tool that converts survey data files into edsl objects"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = []
+dependencies = [
+    "edsl @ file:///Users/johnhorton/tools/ep/edsl",
+    "typer",
+    "rich"
+]
 
-[tool.poetry.dependencies]
-python = ">=3.11"
-edsl = { git = "https://github.com/expectedparrot/edsl.git", rev = "3716ac68c474a35b127052a80c9d8757114e3ccf" }
+[project.scripts]
+conjure = "conjure.__main__:app"
+
+[tool.hatch.metadata]
+allow-direct-references = true

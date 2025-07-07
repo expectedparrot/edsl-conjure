@@ -10,12 +10,12 @@ This document outlines the changes made to migrate Conjure from an EDSL plugin t
    - Removed EDSL entry points from configuration files
 
 2. **Package Management**
-   - Migrated from setuptools to Poetry for dependency management
-   - Updated `pyproject.toml` for Poetry compatibility
-   - Added `poetry.lock` file
+   - Migrated from setuptools to uv for dependency management
+   - Updated `pyproject.toml` for uv compatibility
+   - Removed `poetry.lock` file in favor of uv.lock
 
 3. **Installation**
-   - Now uses `poetry install` instead of pip install with EDSL plugin registration
+   - Now uses `uv sync` instead of pip install with EDSL plugin registration
 
 ## How to Use Conjure
 
@@ -38,18 +38,18 @@ survey = Conjure("survey_data.csv").to_survey()
 
 ## Installation
 
-### Install with Poetry
+### Install with uv
 
 ```bash
 cd edsl-conjure
-poetry install
+uv sync
 ```
 
 ### Development Installation
 
 ```bash
 cd edsl-conjure
-poetry install --with dev
+uv sync --dev
 ```
 
 ## EDSL Compatibility

@@ -39,8 +39,8 @@ class QuestionOptionMixin:
 
     def order_options(self) -> None:
         """Order the options for multiple choice questions using an LLM."""
-        from edsl.questions import QuestionList
-        from edsl.scenarios import ScenarioList
+        from edsl import QuestionList
+        from edsl import ScenarioList
         import textwrap
 
         scenarios = (
@@ -59,7 +59,7 @@ class QuestionOptionMixin:
             
             The survey had following options: '{{ example_question_options }}'.
             The options might be out of order. Please put them in the correct order.
-            If there is not natural order, just put then in order they were presented.
+            If there is no natural order, just put then in order they were presented.
             """
             ),
             question_name="ordering",
