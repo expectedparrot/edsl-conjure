@@ -498,10 +498,16 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "edsl" },
+    { name = "rich" },
+    { name = "typer" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "edsl", directory = "../edsl" }]
+requires-dist = [
+    { name = "edsl", directory = "../edsl" },
+    { name = "rich" },
+    { name = "typer" },
+]
 
 [[package]]
 name = "contourpy"
