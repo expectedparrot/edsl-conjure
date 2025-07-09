@@ -29,7 +29,8 @@ app = typer.Typer()
 def main(
     file_path: Optional[Path] = typer.Argument(None, help="Path to the input survey data file (or stdin if not provided)"),
     json_gz_filename: Optional[str] = typer.Option(None, "--json-gz-filename", help="Save results to compressed JSON file"),
-    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output")
+    verbose: bool = typer.Option(True, "--verbose", "-v", help="Enable verbose output"),
+    sample: Optional[int] = typer.Option(None, "--sample", help="Sample size to use instead of processing all agents")
 ):
     """
     Convert survey data files into EDSL objects.
@@ -80,11 +81,14 @@ def main(
         # Create conjure instance
         conjure_instance = Conjure(str(file_path))
         
+        # Store verbose flag for later use
+        conjure_instance._verbose = verbose
+        
         if verbose:
             console.print(f"[dim]Created conjure instance of type: {type(conjure_instance).__name__}[/dim]")
         
         # Get results
-        results = conjure_instance.to_results()
+        results = conjure_instance.to_results(verbose=verbose, sample_size=sample)
         
         # Handle output
         if json_gz_filename:

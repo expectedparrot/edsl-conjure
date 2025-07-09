@@ -18,7 +18,8 @@ class Conjure:
         if handler is None:
             raise ValueError("Unsupported file type")
         
-        return handler(datafile_name, *args, **kwargs)
+        instance = handler(datafile_name, *args, **kwargs)
+        return instance
 
     def __init__(
         self,

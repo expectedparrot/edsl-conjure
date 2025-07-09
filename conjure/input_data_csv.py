@@ -1,7 +1,9 @@
 from typing import List, Optional
 import pandas as pd
+import sys
 from .input_data import InputDataABC
 from .utilities import convert_value
+from rich.console import Console
 
 
 class InputDataCSV(InputDataABC):
@@ -11,28 +13,43 @@ class InputDataCSV(InputDataABC):
 
         super().__init__(datafile_name, config, **kwargs)
 
-    def get_df(self) -> pd.DataFrame:
+    def get_df(self, verbose: bool = False) -> pd.DataFrame:
         if not hasattr(self, "_df"):
+            console = Console(stderr=True)
+            
+            if verbose:
+                console.print(f"[dim]Loading CSV data from {self.datafile_name}[/dim]")
+            
             self._df = pd.read_csv(
                 self.datafile_name,
                 skiprows=self.config["skiprows"],
                 encoding_errors="ignore",
             )
+            
+            if verbose:
+                console.print(f"[dim]Loaded {len(self._df)} rows, {len(self._df.columns)} columns[/dim]")
+            
             float_columns = self._df.select_dtypes(include=["float64"]).columns
             self._df[float_columns] = self._df[float_columns].astype(str)
             self._df.fillna("", inplace=True)
             self._df = self._df.astype(str)
+            
+            if verbose:
+                console.print("[green]✓[/green] CSV data loaded and processed")
+                
         return self._df
 
     def get_raw_data(self) -> List[List[str]]:
+        verbose = getattr(self, '_verbose', False)
         data = [
             [convert_value(obs) for obs in v]
-            for k, v in self.get_df().to_dict(orient="list").items()
+            for k, v in self.get_df(verbose=verbose).to_dict(orient="list").items()
         ]
         return data
 
     def get_question_texts(self):
-        return list(self.get_df().columns)
+        verbose = getattr(self, '_verbose', False)
+        return list(self.get_df(verbose=verbose).columns)
 
     def get_question_names(self):
         new_names = [self.naming_function(q) for q in self.question_texts]

@@ -1,4 +1,5 @@
 import base64
+import sys
 from abc import ABC, abstractmethod
 from typing import Dict, Callable, Optional, List, Generator, Tuple, Union
 from collections import namedtuple
@@ -9,6 +10,8 @@ from edsl.scenarios import ScenarioList
 from edsl.surveys import Survey
 from edsl.utilities import is_valid_variable_name
 from edsl.dataset import Dataset
+from rich.console import Console
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 
 
 from .survey_responses import SurveyResponses
@@ -126,6 +129,9 @@ class InputDataABC(
         self.question_options = question_options
         if order_options:
             self.order_options()
+            
+        # Store verbose flag for use in methods
+        self._verbose = False
 
     @property
     def download_link(self):
@@ -289,9 +295,9 @@ class InputDataABC(
             rq = self.raw_question(idx)
             q = rq.to_question()
         except Exception as e:
-            print(f"Error with question {question_name} in {self.datafile_name}")
-            print(e)
-            print("Reverting changes")
+            import sys
+            print(f"Error with question {question_name} in {self.datafile_name}", file=sys.stderr)
+            print(f"Too few question options (got {getattr(rq, 'options', 'N/A')}). Reverting changes.", file=sys.stderr)
             self.question_types[idx] = old_type
             self.question_options[idx] = old_options
         return self
@@ -470,10 +476,13 @@ class InputDataABC(
             try:
                 yield rq.to_question()
             except Exception as e:
+                import sys
                 print(
                     f"Error with question '{rq.question_name}' in '{self.datafile_name}'"
+                    f"\nToo few question options (got {getattr(rq, 'options', 'N/A')}). "
+                    f"Question will be omitted.",
+                    file=sys.stderr
                 )
-                print(e)
                 yield None
 
     def select(self, *question_names: List[str]) -> "InputData":
@@ -508,7 +517,7 @@ class InputDataABC(
             question_name_repair_func=self.question_name_repair_func,
         )
 
-    def to_survey(self) -> Survey:
+    def to_survey(self, verbose: bool = False) -> Survey:
         """
         >>> id = InputDataABC.example()
         >>> s = id.to_survey()
@@ -516,10 +525,39 @@ class InputDataABC(
         True
 
         """
+        console = Console(stderr=True)
         s = Survey()
-        for q in self.questions():
-            if q is not None:
-                s.add_question(q)
+        
+        questions_list = list(self.questions())
+        
+        if verbose:
+            console.print(f"[dim]Building survey from {len(questions_list)} questions[/dim]")
+        
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            console=console,
+            disable=not verbose
+        ) as progress:
+            
+            task = progress.add_task("[cyan]Adding questions to survey...", total=len(questions_list))
+            
+            for i, q in enumerate(questions_list):
+                if q is not None:
+                    s.add_question(q)
+                    if verbose and i % 10 == 0:
+                        progress.update(task, advance=10)
+                elif verbose:
+                    progress.update(task, advance=1)
+                    
+            progress.update(task, completed=len(questions_list))
+            
+        if verbose:
+            valid_questions = sum(1 for q in questions_list if q is not None)
+            console.print(f"[green]✓[/green] Added {valid_questions} valid questions to survey")
+            
         return s
 
     def print(self):
