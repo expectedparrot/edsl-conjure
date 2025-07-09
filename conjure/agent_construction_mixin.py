@@ -9,7 +9,10 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn
 
 
-class AgentConstructionMixin:
+class AgentConstructionModule:
+    def __init__(self, input_data):
+        self.input_data = input_data
+    
     def agent(self, index) -> Agent:
         """Return an agent constructed from the data.
 
@@ -17,19 +20,21 @@ class AgentConstructionMixin:
 
         >>> from .input_data import InputDataABC
         >>> id = InputDataABC.example()
-        >>> id.agent(0)
+        >>> id.agent_construction.agent(0)
         Agent(traits = {'morning': '1', 'feeling': '3'}, codebook = {'morning': 'how are you doing this morning?', 'feeling': 'how are you feeling?'})
 
 
         """
-        responses = [responses[index] for responses in self.raw_data]
-        traits = {qn: r for qn, r in zip(self.question_names, responses)}
+        responses = [responses[index] for responses in self.input_data.raw_data]
+        traits = {f"{qn}_agent": r for qn, r in zip(self.input_data.question_names, responses)}
 
-        a = Agent(traits=traits, codebook=self.names_to_texts)
+        adjusted_codebook = {k + "_agent": v for k, v in self.input_data.names_to_texts.items()}
+
+        a = Agent(traits=traits, codebook=adjusted_codebook)
 
         def construct_answer_dict_function(traits: dict) -> Callable:
             def func(self, question: "QuestionBase", scenario=None):
-                return traits.get(question.question_name, None)
+                return traits.get(question.question_name + "_agent", None)
 
             return func
 
@@ -56,10 +61,10 @@ class AgentConstructionMixin:
 
         >>> from .input_data import InputDataABC
         >>> id = InputDataABC.example()
-        >>> al = id.to_agent_list()
+        >>> al = id.agent_construction.to_agent_list()
         >>> len(al) == id.num_observations
         True
-        >>> al = id.to_agent_list(indices = [0, 1, 2])
+        >>> al = id.agent_construction.to_agent_list(indices = [0, 1, 2])
         Traceback (most recent call last):
         ...
         ValueError: Index 2 is greater than the number of agents 2.
@@ -72,28 +77,29 @@ class AgentConstructionMixin:
         if indices:
             if len(indices) == 0:
                 raise ValueError("Indices must be a non-empty list.")
-            if max(indices) >= self.num_observations:
+            if max(indices) >= self.input_data.num_observations:
                 raise ValueError(
-                    f"Index {max(indices)} is greater than the number of agents {self.num_observations}."
+                    f"Index {max(indices)} is greater than the number of agents {self.input_data.num_observations}."
                 )
             if min(indices) < 0:
                 raise ValueError(f"Index {min(indices)} is less than 0.")
 
         if indices is None:
             if sample_size is None:
-                indices = range(self.num_observations)
+                indices = range(self.input_data.num_observations)
             else:
-                if sample_size > self.num_observations:
+                if sample_size > self.input_data.num_observations:
                     raise ValueError(
-                        f"Sample size {sample_size} is greater than the number of agents {self.num_observations}."
+                        f"Sample size {sample_size} is greater than the number of agents {self.input_data.num_observations}."
                     )
                 random.seed(seed)
-                indices = random.sample(range(self.num_observations), sample_size)
+                indices = random.sample(range(self.input_data.num_observations), sample_size)
 
         agents = list(self._agents(indices))
         if remove_direct_question_answering_method:
             for a in agents:
                 a.remove_direct_question_answering_method()
+            breakpoint()
         return AgentList(agents)
 
     def to_results(
@@ -116,7 +122,7 @@ class AgentConstructionMixin:
 
         >>> from .input_data import InputDataABC
         >>> id = InputDataABC.example()
-        >>> r = id.to_results(disable_remote_cache = True, disable_remote_inference = True)
+        >>> r = id.agent_construction.to_results(disable_remote_cache = True, disable_remote_inference = True)
         >>> len(r) == id.num_observations
         True
         """
@@ -138,7 +144,7 @@ class AgentConstructionMixin:
             # Step 1: Create agent list
             agent_task = progress.add_task("[cyan]Creating agent list...", total=None)
             if verbose:
-                console.print(f"[dim]Processing {self.num_observations} observations from {self.datafile_name}[/dim]")
+                console.print(f"[dim]Processing {self.input_data.num_observations} observations from {self.input_data.datafile_name}[/dim]")
             
             agent_list = self.to_agent_list(
                 indices=indices,
@@ -151,9 +157,9 @@ class AgentConstructionMixin:
             # Step 2: Create survey
             survey_task = progress.add_task("[cyan]Creating survey...", total=None)
             if verbose:
-                console.print(f"[dim]Processing {len(self.question_names)} questions[/dim]")
+                console.print(f"[dim]Processing {len(self.input_data.question_names)} questions[/dim]")
             
-            survey = self.to_survey(verbose=verbose)
+            survey = self.input_data.to_survey(verbose=verbose)
             progress.update(survey_task, completed=1, total=1)
             
             # Step 3: Handle dryrun

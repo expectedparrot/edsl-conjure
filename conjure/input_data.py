@@ -17,19 +17,13 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskPr
 from .survey_responses import SurveyResponses
 from .naming_utilities import sanitize_string
 from .raw_question import RawQuestion
-from .agent_construction_mixin import AgentConstructionMixin
-from .question_option_mixin import QuestionOptionMixin
-from .input_data_mixin_question_stats import InputDataMixinQuestionStats
-from .question_type_mixin import QuestionTypeMixin
+from .agent_construction_mixin import AgentConstructionModule
+from .question_option_mixin import QuestionOptionModule
+from .input_data_mixin_question_stats import QuestionStatsModule
+from .question_type_mixin import QuestionTypeModule
 
 
-class InputDataABC(
-    ABC,
-    InputDataMixinQuestionStats,
-    AgentConstructionMixin,
-    QuestionOptionMixin,
-    QuestionTypeMixin,
-):
+class InputDataABC(ABC):
     """A class to represent the input data for a survey."""
 
     NUM_UNIQUE_THRESHOLD = 15
@@ -125,13 +119,90 @@ class InputDataABC(
 
         self.apply_codebook()
 
-        self.question_types = question_types
-        self.question_options = question_options
+        # Initialize modules using composition instead of mixins
+        self.question_stats = QuestionStatsModule(self)
+        self.question_type = QuestionTypeModule(self)
+        self.question_option = QuestionOptionModule(self)
+        self.agent_construction = AgentConstructionModule(self)
+
+        self.question_type.question_types = question_types
+        self.question_option.question_options = question_options
         if order_options:
-            self.order_options()
+            self.question_option.order_options()
             
         # Store verbose flag for use in methods
         self._verbose = False
+
+    # Properties for backward compatibility with mixin interface
+    @property
+    def question_types(self):
+        return self.question_type.question_types
+    
+    @question_types.setter
+    def question_types(self, value):
+        self.question_type.question_types = value
+    
+    @property
+    def question_options(self):
+        return self.question_option.question_options
+    
+    @question_options.setter
+    def question_options(self, value):
+        self.question_option.question_options = value
+    
+    # Question stats methods
+    def question_statistics(self, question_name: str):
+        return self.question_stats.question_statistics(question_name)
+    
+    @property
+    def num_responses(self):
+        return self.question_stats.num_responses
+    
+    @property
+    def num_unique_responses(self):
+        return self.question_stats.num_unique_responses
+    
+    @property
+    def missing(self):
+        return self.question_stats.missing
+    
+    @property
+    def frac_numerical(self):
+        return self.question_stats.frac_numerical
+    
+    @property
+    def frac_obs_from_top_5(self):
+        return self.question_stats.frac_obs_from_top_5
+    
+    @property
+    def top_5(self):
+        return self.question_stats.top_5
+    
+    @property
+    def unique_responses(self):
+        return self.question_stats.unique_responses
+    
+    def unique_responses_more_than_k(self, k, remove_missing=True):
+        return self.question_stats.unique_responses_more_than_k(k, remove_missing)
+    
+    def top_k(self, k):
+        return self.question_stats.top_k(k)
+    
+    def frac_obs_from_top_k(self, k):
+        return self.question_stats.frac_obs_from_top_k(k)
+    
+    # Agent construction methods
+    def agent(self, index):
+        return self.agent_construction.agent(index)
+    
+    def to_agent_list(self, indices=None, sample_size=None, seed="edsl", remove_direct_question_answering_method=True):
+        return self.agent_construction.to_agent_list(indices, sample_size, seed, remove_direct_question_answering_method)
+    
+    def to_results(self, indices=None, sample_size=None, seed="edsl", dryrun=False, disable_remote_cache=False, disable_remote_inference=True, verbose=False):
+        return self.agent_construction.to_results(indices, sample_size, seed, dryrun, disable_remote_cache, disable_remote_inference, verbose)
+    
+    def order_options(self):
+        return self.question_option.order_options()
 
     @property
     def download_link(self):
@@ -224,8 +295,8 @@ class InputDataABC(
         idx = self.question_names.index(question_name)
         self._question_names.pop(idx)
         self._question_texts.pop(idx)
-        self.question_types.pop(idx)
-        self.question_options.pop(idx)
+        self.question_type.question_types.pop(idx)
+        self.question_option.question_options.pop(idx)
         self.raw_data.pop(idx)
         self.answer_codebook.pop(question_name, None)
         return self
@@ -275,8 +346,8 @@ class InputDataABC(
         ...
         ValueError: Question type poop is not available.
         """
-        old_type = self.question_types[self.question_names.index(question_name)]
-        old_options = self.question_options[self.question_names.index(question_name)]
+        old_type = self.question_type.question_types[self.question_names.index(question_name)]
+        old_options = self.question_option.question_options[self.question_names.index(question_name)]
 
         from edsl.questions import Question
 
@@ -284,11 +355,11 @@ class InputDataABC(
             raise ValueError(f"Question type {new_type} is not available.")
 
         idx = self.question_names.index(question_name)
-        self.question_types[idx] = new_type
+        self.question_type.question_types[idx] = new_type
         if drop_options:
-            self.question_options[idx] = None
+            self.question_option.question_options[idx] = None
         if new_options is not None:
-            self.question_options[idx] = new_options
+            self.question_option.question_options[idx] = new_options
 
         try:
             idx = self.question_names.index(question_name)
@@ -298,8 +369,8 @@ class InputDataABC(
             import sys
             print(f"Error with question {question_name} in {self.datafile_name}", file=sys.stderr)
             print(f"Too few question options (got {getattr(rq, 'options', 'N/A')}). Reverting changes.", file=sys.stderr)
-            self.question_types[idx] = old_type
-            self.question_options[idx] = old_options
+            self.question_type.question_types[idx] = old_type
+            self.question_option.question_options[idx] = old_options
         return self
 
     @property
@@ -322,7 +393,7 @@ class InputDataABC(
             "question_texts": self.question_texts,
             "binary": self.binary,
             "answer_codebook": self.answer_codebook,
-            "question_types": self.question_types,
+            "question_types": self.question_type.question_types,
         }
 
     @classmethod
@@ -457,11 +528,11 @@ class InputDataABC(
 
     def raw_question(self, index: int) -> RawQuestion:
         return RawQuestion(
-            question_type=self.question_types[index],
+            question_type=self.question_type.question_types[index],
             question_name=self.question_names[index],
             question_text=self.question_texts[index],
             responses=self.raw_data[index],
-            question_options=self.question_options[index],
+            question_options=self.question_option.question_options[index],
         )
 
     def raw_questions(self) -> Generator[RawQuestion, None, None]:
@@ -499,8 +570,8 @@ class InputDataABC(
         idxs = [self.question_names.index(qn) for qn in question_names]
         new_data = [self.raw_data[i] for i in idxs]
         new_texts = [self.question_texts[i] for i in idxs]
-        new_types = [self.question_types[i] for i in idxs]
-        new_options = [self.question_options[i] for i in idxs]
+        new_types = [self.question_type.question_types[i] for i in idxs]
+        new_options = [self.question_option.question_options[i] for i in idxs]
         new_names = [self.question_names[i] for i in idxs]
         answer_codebook = {
             qn: self.answer_codebook.get(qn, {}) for qn in question_names
@@ -564,13 +635,13 @@ class InputDataABC(
         sl = (
             ScenarioList.from_list("question_name", self.question_names)
             .add_list("question_text", self.question_texts)
-            .add_list("inferred_question_type", self.question_types)
+            .add_list("inferred_question_type", self.question_type.question_types)
             .add_list("num_responses", self.num_responses)
             .add_list("num_unique_responses", self.num_unique_responses)
             .add_list("missing", self.missing)
             .add_list("frac_numerical", self.frac_numerical)
-            .add_list("top_5_items", self.top_k(5))
-            .add_list("frac_obs_from_top_5", self.frac_obs_from_top_k(5))
+            .add_list("top_5_items", self.question_stats.top_k(5))
+            .add_list("frac_obs_from_top_5", self.question_stats.frac_obs_from_top_k(5))
         )
         sl.print()
 

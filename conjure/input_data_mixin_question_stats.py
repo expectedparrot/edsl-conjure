@@ -4,10 +4,13 @@ from .utilities import Missing
 from collections import Counter
 
 
-class InputDataMixinQuestionStats:
+class QuestionStatsModule:
+    def __init__(self, input_data):
+        self.input_data = input_data
+    
     def question_statistics(self, question_name: str) -> "QuestionStats":
         """Return statistics for a question."""
-        return self.QuestionStats(**self._compute_question_statistics(question_name))
+        return self.input_data.QuestionStats(**self._compute_question_statistics(question_name))
 
     def _compute_question_statistics(self, question_name: str) -> dict:
         """
@@ -15,11 +18,11 @@ class InputDataMixinQuestionStats:
 
         >>> from .input_data import InputDataABC
         >>> id = InputDataABC.example()
-        >>> id._compute_question_statistics('morning')
+        >>> id.question_stats._compute_question_statistics('morning')
         {'num_responses': 2, 'num_unique_responses': 2, 'missing': 0, 'unique_responses': ..., 'frac_numerical': 0.0, 'top_5': [('1', 1), ('4', 1)], 'frac_obs_from_top_5': 1.0}
         """
-        idx = self.question_names.index(question_name)
-        return {attr: getattr(self, attr)[idx] for attr in self.question_attributes}
+        idx = self.input_data.question_names.index(question_name)
+        return {attr: getattr(self, attr)[idx] for attr in self.input_data.question_attributes}
 
     @property
     def num_responses(self) -> List[int]:
@@ -35,7 +38,7 @@ class InputDataMixinQuestionStats:
 
     @functools.lru_cache(maxsize=1)
     def compute_num_responses(self):
-        return [len(responses) for responses in self.raw_data]
+        return [len(responses) for responses in self.input_data.raw_data]
 
     @property
     def num_unique_responses(self) -> List[int]:
@@ -51,7 +54,7 @@ class InputDataMixinQuestionStats:
 
     @functools.lru_cache(maxsize=1)
     def compute_num_unique_responses(self):
-        return [len(set(responses)) for responses in self.raw_data]
+        return [len(set(responses)) for responses in self.input_data.raw_data]
 
     @property
     def missing(self) -> List[int]:
@@ -67,7 +70,7 @@ class InputDataMixinQuestionStats:
 
     @functools.lru_cache(maxsize=1)
     def compute_missing(self):
-        return [sum([1 for x in v if x == Missing().value()]) for v in self.raw_data]
+        return [sum([1 for x in v if x == Missing().value()]) for v in self.input_data.raw_data]
 
     @property
     def frac_numerical(self) -> List[float]:
@@ -85,7 +88,7 @@ class InputDataMixinQuestionStats:
     def compute_frac_numerical(self):
         return [
             sum([1 for x in v if isinstance(x, (int, float))]) / len(v)
-            for v in self.raw_data
+            for v in self.input_data.raw_data
         ]
 
     @functools.lru_cache(maxsize=1)
@@ -93,12 +96,12 @@ class InputDataMixinQuestionStats:
         """
         >>> from .input_data import InputDataABC
         >>> input_data = InputDataABC.example(raw_data = [[1,1,1,1,1,2]], question_texts = ['A question'])
-        >>> input_data.top_k(1)
+        >>> input_data.question_stats.top_k(1)
         [[(1, 5)]]
-        >>> input_data.top_k(2)
+        >>> input_data.question_stats.top_k(2)
         [[(1, 5), (2, 1)]]
         """
-        return [Counter(value).most_common(k) for value in self.raw_data]
+        return [Counter(value).most_common(k) for value in self.input_data.raw_data]
 
     @functools.lru_cache(maxsize=1)
     def frac_obs_from_top_k(self, k):
@@ -107,7 +110,7 @@ class InputDataMixinQuestionStats:
 
         >>> from .input_data import InputDataABC
         >>> input_data = InputDataABC.example(raw_data = [[1,1,1,1,1,1,1,1,2, 3]], question_names = ['a'])
-        >>> input_data.frac_obs_from_top_k(1)
+        >>> input_data.question_stats.frac_obs_from_top_k(1)
         [0.8]
         """
         return [
@@ -116,7 +119,7 @@ class InputDataMixinQuestionStats:
                 / len(value),
                 2,
             )
-            for value in self.raw_data
+            for value in self.input_data.raw_data
         ]
 
     @property
@@ -143,7 +146,7 @@ class InputDataMixinQuestionStats:
     @functools.lru_cache(maxsize=1)
     def compute_unique_responses(self):
         return [
-            list(set(self.filter_missing(responses))) for responses in self.raw_data
+            list(set(self.filter_missing(responses))) for responses in self.input_data.raw_data
         ]
 
     @staticmethod
@@ -164,7 +167,7 @@ class InputDataMixinQuestionStats:
         [[...], [...]]
 
         """
-        counters = [Counter(responses) for responses in self.raw_data]
+        counters = [Counter(responses) for responses in self.input_data.raw_data]
         new_counters = []
         for question in counters:
             top_options = []

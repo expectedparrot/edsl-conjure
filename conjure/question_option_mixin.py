@@ -1,17 +1,21 @@
 from typing import Union, List
 
 
-class QuestionOptionMixin:
+class QuestionOptionModule:
+    def __init__(self, input_data):
+        self.input_data = input_data
+        self._question_options = None
+    
     @property
     def question_options(self):
-        if not hasattr(self, "_question_options"):
+        if self._question_options is None:
             self.question_options = None
         return self._question_options
 
     @question_options.setter
     def question_options(self, value):
         if value is None:
-            value = [self._get_question_options(qn) for qn in self.question_names]
+            value = [self._get_question_options(qn) for qn in self.input_data.question_names]
         self._question_options = value
 
     def _get_question_options(self, question_name) -> Union[List[str], None]:
@@ -19,20 +23,20 @@ class QuestionOptionMixin:
 
         >>> from .input_data import InputDataABC
         >>> id = InputDataABC.example()
-        >>> sorted(id._get_question_options('morning'))
+        >>> sorted(id.question_options._get_question_options('morning'))
         ['1', '4']
 
         """
-        qt = self.question_statistics(question_name)
-        idx = self.question_names.index(question_name)
-        question_type = self.question_types[idx]
+        qt = self.input_data.question_stats.question_statistics(question_name)
+        idx = self.input_data.question_names.index(question_name)
+        question_type = self.input_data.question_type.question_types[idx]
         if question_type == "multiple_choice":
             return [str(o) for o in qt.unique_responses]
         else:
             if question_type == "multiple_choice_with_other":
-                options = self.unique_responses_more_than_k(2)[
-                    self.question_names.index(question_name)
-                ] + [self.OTHER_STRING]
+                options = self.input_data.question_stats.unique_responses_more_than_k(2)[
+                    self.input_data.question_names.index(question_name)
+                ] + [self.input_data.OTHER_STRING]
                 return [str(o) for o in options]
             else:
                 return None
@@ -44,9 +48,9 @@ class QuestionOptionMixin:
         import textwrap
 
         scenarios = (
-            ScenarioList.from_list("example_question_name", self.question_names)
-            .add_list("example_question_text", self.question_texts)
-            .add_list("example_question_type", self.question_types)
+            ScenarioList.from_list("example_question_name", self.input_data.question_names)
+            .add_list("example_question_text", self.input_data.question_texts)
+            .add_list("example_question_type", self.input_data.question_type.question_types)
             .add_list("example_question_options", self.question_options)
         ).filter(
             'example_question_type == "multiple_choice" or example_question_type == "multiple_choice_with_other"'
@@ -68,7 +72,7 @@ class QuestionOptionMixin:
         d = dict(
             proposed_ordering.select("example_question_name", "ordering").to_list()
         )
-        self._question_options = [d.get(qn, None) for qn in self.question_names]
+        self._question_options = [d.get(qn, None) for qn in self.input_data.question_names]
 
 
 if __name__ == "__main__":
