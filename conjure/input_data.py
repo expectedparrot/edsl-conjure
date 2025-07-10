@@ -51,6 +51,7 @@ class InputDataABC(ABC):
         binary: Optional[str] = None,
         question_names: Optional[List[str]] = None,
         question_texts: Optional[List[str]] = None,
+        question_names_to_question_text: Optional[Dict[str, str]] = None,
         answer_codebook: Optional[Dict] = None,
         question_types: Optional[List[str]] = None,
         question_options: Optional[List] = None,
@@ -114,6 +115,7 @@ class InputDataABC(ABC):
 
         self.question_texts = question_texts
         self.question_names = question_names
+        self.question_names_to_question_text = question_names_to_question_text
         self.answer_codebook = answer_codebook
         self.raw_data = raw_data
 
@@ -527,10 +529,19 @@ class InputDataABC(ABC):
         return {t: n for n, t in self.names_to_texts.items()}
 
     def raw_question(self, index: int) -> RawQuestion:
+        question_name = self.question_names[index]
+        
+        # Use question_names_to_question_text mapping if available, otherwise use question_texts
+        # Use case-insensitive matching for dictionary lookups
+        if self.question_names_to_question_text and question_name.lower() in self.question_names_to_question_text:
+            question_text = self.question_names_to_question_text[question_name.lower()]
+        else:
+            question_text = self.question_texts[index]
+        
         return RawQuestion(
             question_type=self.question_type.question_types[index],
-            question_name=self.question_names[index],
-            question_text=self.question_texts[index],
+            question_name=question_name,
+            question_text=question_text,
             responses=self.raw_data[index],
             question_options=self.question_option.question_options[index],
         )

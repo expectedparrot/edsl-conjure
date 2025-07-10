@@ -29,6 +29,7 @@ class Conjure:
         raw_data: Optional[List] = None,
         question_names: Optional[List[str]] = None,
         question_texts: Optional[List[str]] = None,
+        question_names_to_question_text: Optional[Dict[str, str]] = None,
         answer_codebook: Optional[Dict] = None,
         question_types: Optional[List[str]] = None,
         question_options: Optional[List] = None,

@@ -30,7 +30,23 @@ class AgentConstructionModule:
 
         adjusted_codebook = {k + "_agent": v for k, v in self.input_data.names_to_texts.items()}
 
-        a = Agent(traits=traits, codebook=adjusted_codebook)
+        # Create a custom traits presentation template
+        template_lines = [
+            "{% for key, value in traits.items() %}",
+            "When you were asked: {{ codebook[key] if codebook and key in codebook else key.replace('_agent', '') }}",
+            "{% if value is iterable and value is not string %}",
+            "    {% for v in value %}",
+            "You responded: {{ v }}",
+            "    {% endfor %}",
+            "{% else %}",
+            "You responded: {{ value }}",
+            "{% endif %}",
+            "",
+            "{% endfor %}",
+        ]
+        traits_presentation_template = "\n".join(template_lines)
+
+        a = Agent(traits=traits, codebook=adjusted_codebook, traits_presentation_template=traits_presentation_template)
 
         def construct_answer_dict_function(traits: dict) -> Callable:
             def func(self, question: "QuestionBase", scenario=None):
@@ -99,7 +115,6 @@ class AgentConstructionModule:
         if remove_direct_question_answering_method:
             for a in agents:
                 a.remove_direct_question_answering_method()
-            breakpoint()
         return AgentList(agents)
 
     def to_results(
