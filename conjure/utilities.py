@@ -120,10 +120,17 @@ def convert_value(x):
     'how are you?'
     >>> convert_value("")
     'missing'
+    >>> convert_value("nan")
+    'missing'
+    >>> convert_value("null")
+    'missing'
 
     """
     try:
         float_val = float(x)
+        # Check for NaN or infinite values which are not JSON serializable
+        if float_val != float_val or float_val == float('inf') or float_val == float('-inf'):
+            return Missing().value()
         if float_val.is_integer():
             return int(float_val)
         else:
@@ -132,6 +139,9 @@ def convert_value(x):
         if len(x) == 0:
             return Missing().value()
         else:
+            # Handle common representations of missing values
+            if str(x).lower() in ['nan', 'null', 'none', 'n/a']:
+                return Missing().value()
             return str(x)
 
 
