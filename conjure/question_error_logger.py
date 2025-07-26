@@ -5,6 +5,7 @@ Collects question processing errors and provides clean user feedback.
 
 import os
 import sys
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any
@@ -38,6 +39,44 @@ class QuestionErrorLogger:
             f.write(f"Generated: {datetime.now().isoformat()}\n")
             f.write(f"Data file: {datafile_name}\n")
             f.write(f"{'='*80}\n\n")
+        
+        # Configure EDSL logging to suppress error messages to stdout
+        self._configure_edsl_logging()
+    
+    def _configure_edsl_logging(self):
+        """Configure EDSL logging to redirect errors to our log file instead of stdout."""
+        # Get the EDSL logger
+        edsl_logger = logging.getLogger('edsl')
+        
+        # Remove any existing handlers to prevent duplicate messages
+        for handler in edsl_logger.handlers[:]:
+            edsl_logger.removeHandler(handler)
+        
+        # Set the logging level to capture errors but redirect them
+        edsl_logger.setLevel(logging.ERROR)
+        
+        # Create a file handler that writes to our error log
+        file_handler = logging.FileHandler(self.log_file, mode='a')
+        file_handler.setLevel(logging.ERROR)
+        
+        # Create a formatter for the log messages  
+        formatter = logging.Formatter(
+            '[%(asctime)s] EDSL %(levelname)s: %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+        file_handler.setFormatter(formatter)
+        
+        # Add the file handler to the EDSL logger
+        edsl_logger.addHandler(file_handler)
+        
+        # Prevent propagation to parent loggers (which might print to console)
+        edsl_logger.propagate = False
+        
+        # Also capture any question creation errors specifically
+        question_logger = logging.getLogger('edsl.questions')
+        question_logger.setLevel(logging.ERROR)
+        question_logger.addHandler(file_handler)
+        question_logger.propagate = False
     
     def log_question_error(self, question_name: str, error_type: str, details: str, exception: Exception = None):
         """Log a question processing error."""
