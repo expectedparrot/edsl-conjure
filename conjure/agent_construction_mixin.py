@@ -157,9 +157,15 @@ class AgentConstructionModule:
         ) as progress:
             
             # Step 1: Create agent list
-            agent_task = progress.add_task("[cyan]Creating agent list...", total=None)
+            total_agents = sample_size if sample_size else (len(indices) if indices else self.input_data.num_observations)
+            agent_task = progress.add_task("[cyan]Creating agent list...", total=total_agents)
+            
             if verbose:
-                console.print(f"[dim]Processing {self.input_data.num_observations} observations from {self.input_data.datafile_name}[/dim]")
+                console.print(f"[dim]Processing {total_agents} agents from {self.input_data.num_observations} total observations in {self.input_data.datafile_name}[/dim]")
+                if sample_size:
+                    console.print(f"[dim]Using random sample of {sample_size} agents with seed '{seed}'[/dim]")
+                elif indices:
+                    console.print(f"[dim]Using specified indices: {len(indices)} agents[/dim]")
             
             agent_list = self.to_agent_list(
                 indices=indices,
@@ -167,25 +173,30 @@ class AgentConstructionModule:
                 seed=seed,
                 remove_direct_question_answering_method=False,
             )
-            progress.update(agent_task, completed=1, total=1)
+            progress.update(agent_task, completed=total_agents)
             
             # Step 2: Create survey
-            survey_task = progress.add_task("[cyan]Creating survey...", total=None)
+            num_questions = len(self.input_data.question_names)
+            survey_task = progress.add_task("[cyan]Creating survey...", total=num_questions)
             if verbose:
-                console.print(f"[dim]Processing {len(self.input_data.question_names)} questions[/dim]")
+                console.print(f"[dim]Converting {num_questions} questions to EDSL survey format[/dim]")
             
-            survey = self.input_data.to_survey(verbose=verbose)
-            progress.update(survey_task, completed=1, total=1)
+            # Create a progress callback to update the main progress bar
+            def survey_progress_callback(completed):
+                progress.update(survey_task, completed=completed)
+            
+            survey = self.input_data.to_survey(verbose=verbose, progress_callback=survey_progress_callback if verbose else None)
+            progress.update(survey_task, completed=num_questions)
             
             # Step 3: Handle dryrun
             if dryrun:
                 import time
                 
-                dryrun_task = progress.add_task("[yellow]Running dryrun...", total=None)
-                DRYRUN_SAMPLE = 30
+                DRYRUN_SAMPLE = min(30, len(agent_list))  # Don't sample more than we have
+                dryrun_task = progress.add_task(f"[yellow]Running dryrun ({DRYRUN_SAMPLE} agents)...", total=DRYRUN_SAMPLE)
                 
                 if verbose:
-                    console.print(f"[dim]Running dryrun with {DRYRUN_SAMPLE} agents[/dim]")
+                    console.print(f"[dim]Running performance test with {DRYRUN_SAMPLE} agents to estimate timing[/dim]")
 
                 start = time.time()
                 _ = survey.by(agent_list.sample(DRYRUN_SAMPLE)).run(
@@ -194,22 +205,27 @@ class AgentConstructionModule:
                 )
                 end = time.time()
                 
-                progress.update(dryrun_task, completed=1, total=1)
+                progress.update(dryrun_task, completed=DRYRUN_SAMPLE)
                 
-                console.print(f"[green]✓[/green] Time to run {DRYRUN_SAMPLE} agents: {round(end - start, 2)}s")
-                time_per_agent = (end - start) / DRYRUN_SAMPLE
+                elapsed_time = end - start
+                time_per_agent = elapsed_time / DRYRUN_SAMPLE
                 full_sample_time = time_per_agent * len(agent_list)
                 
+                console.print(f"[green]✓[/green] Dryrun completed: {DRYRUN_SAMPLE} agents in {elapsed_time:.2f}s ({time_per_agent:.2f}s per agent)")
+                
+                # Enhanced time estimates with better formatting
                 if full_sample_time < 60:
-                    console.print(f"[dim]Full sample will take about {round(full_sample_time, 2)} seconds.[/dim]")
+                    console.print(f"[bold yellow]📊 Estimated time for all {len(agent_list)} agents: {full_sample_time:.1f} seconds[/bold yellow]")
                 elif full_sample_time < 3600:
-                    console.print(f"[dim]Full sample will take about {round(full_sample_time / 60, 2)} minutes.[/dim]")
+                    console.print(f"[bold yellow]📊 Estimated time for all {len(agent_list)} agents: {full_sample_time / 60:.1f} minutes[/bold yellow]")
                 else:
-                    console.print(f"[dim]Full sample will take about {round(full_sample_time / 3600, 2)} hours.[/dim]")
+                    console.print(f"[bold yellow]📊 Estimated time for all {len(agent_list)} agents: {full_sample_time / 3600:.1f} hours[/bold yellow]")
+                
+                console.print(f"[dim]Use --sample to reduce the number of agents if this seems too long[/dim]")
                 return None
             
             # Step 4: Run the actual survey
-            run_task = progress.add_task("[green]Running survey...", total=None)
+            run_task = progress.add_task(f"[green]Running survey ({len(agent_list)} agents)...", total=len(agent_list))
             
             # If we have more than 10 agents and verbose is enabled, do a timing estimate
             if len(agent_list) > 10 and verbose:
@@ -230,15 +246,18 @@ class AgentConstructionModule:
                 time_per_agent = sample_time / 10
                 estimated_total_time = time_per_agent * len(agent_list)
                 
+                # Update progress for completed sample
+                progress.update(run_task, completed=10)
+                
                 console.print(f"[green]✓[/green] Sample of 10 agents completed in {sample_time:.2f}s")
-                console.print(f"[dim]Time per agent: {time_per_agent:.2f}s[/dim]")
+                console.print(f"[dim]Performance: {time_per_agent:.2f}s per agent[/dim]")
                 
                 if estimated_total_time < 60:
-                    console.print(f"[yellow]Estimated time for all {len(agent_list)} agents: {estimated_total_time:.1f} seconds[/yellow]")
+                    console.print(f"[yellow]🕒 Estimated total time: {estimated_total_time:.1f} seconds[/yellow]")
                 elif estimated_total_time < 3600:
-                    console.print(f"[yellow]Estimated time for all {len(agent_list)} agents: {estimated_total_time / 60:.1f} minutes[/yellow]")
+                    console.print(f"[yellow]🕒 Estimated total time: {estimated_total_time / 60:.1f} minutes[/yellow]")
                 else:
-                    console.print(f"[yellow]Estimated time for all {len(agent_list)} agents: {estimated_total_time / 3600:.1f} hours[/yellow]")
+                    console.print(f"[yellow]🕒 Estimated total time: {estimated_total_time / 3600:.1f} hours[/yellow]")
                 
                 # Calculate estimated time for remaining agents
                 remaining_agents = len(agent_list) - 10
@@ -271,6 +290,9 @@ class AgentConstructionModule:
                 else:
                     console.print(f"[green]✓[/green] Total elapsed time: {total_elapsed / 3600:.1f} hours")
                 
+                # Update progress for completed agents
+                progress.update(run_task, completed=len(agent_list))
+                
                 # Combine results
                 results = sample_results + remaining_results
                 
@@ -287,8 +309,10 @@ class AgentConstructionModule:
                     disable_remote_inference=disable_remote_inference,
                 )
                 
-                # Calculate elapsed time
+                # Update progress and calculate elapsed time
+                progress.update(run_task, completed=len(agent_list))
                 elapsed = time.time() - survey_start
+                
                 if verbose:
                     if elapsed < 60:
                         console.print(f"[green]✓[/green] Total elapsed time: {elapsed:.1f} seconds")
@@ -297,10 +321,9 @@ class AgentConstructionModule:
                     else:
                         console.print(f"[green]✓[/green] Total elapsed time: {elapsed / 3600:.1f} hours")
             
-            progress.update(run_task, completed=1, total=1)
-            
             if verbose:
                 console.print("[bold green]✓ Survey conversion completed successfully![/bold green]")
+                console.print(f"[dim]Final results contain {len(results)} agent responses[/dim]")
             
             return results
 

@@ -599,7 +599,7 @@ class InputDataABC(ABC):
             question_name_repair_func=self.question_name_repair_func,
         )
 
-    def to_survey(self, verbose: bool = False) -> Survey:
+    def to_survey(self, verbose: bool = False, progress_callback=None) -> Survey:
         """
         >>> id = InputDataABC.example()
         >>> s = id.to_survey()
@@ -615,30 +615,40 @@ class InputDataABC(ABC):
         if verbose:
             console.print(f"[dim]Building survey from {len(questions_list)} questions[/dim]")
         
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TaskProgressColumn(),
-            console=console,
-            disable=not verbose
-        ) as progress:
-            
-            task = progress.add_task("[cyan]Adding questions to survey...", total=len(questions_list))
-            
+        # If we have a progress callback, use it instead of creating our own progress
+        if progress_callback:
             for i, q in enumerate(questions_list):
                 if q is not None:
                     s.add_question(q)
-                    if verbose and i % 10 == 0:
-                        progress.update(task, advance=10)
-                elif verbose:
-                    progress.update(task, advance=1)
-                    
-            progress.update(task, completed=len(questions_list))
+                if i % max(1, len(questions_list) // 20) == 0:  # Update every 5%
+                    progress_callback(i + 1)
+        else:
+            # Use our own progress bar when no callback provided
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TaskProgressColumn(),
+                console=console,
+                disable=not verbose
+            ) as progress:
+                
+                task = progress.add_task("[cyan]Adding questions to survey...", total=len(questions_list))
+                
+                for i, q in enumerate(questions_list):
+                    if q is not None:
+                        s.add_question(q)
+                    if i % max(1, len(questions_list) // 10) == 0:  # Update every 10%
+                        progress.update(task, completed=i + 1)
+                        
+                progress.update(task, completed=len(questions_list))
             
         if verbose:
             valid_questions = sum(1 for q in questions_list if q is not None)
+            invalid_questions = len(questions_list) - valid_questions
             console.print(f"[green]✓[/green] Added {valid_questions} valid questions to survey")
+            if invalid_questions > 0:
+                console.print(f"[yellow]⚠[/yellow] Skipped {invalid_questions} invalid questions")
             
         return s
 
