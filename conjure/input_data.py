@@ -21,6 +21,7 @@ from .agent_construction_mixin import AgentConstructionModule
 from .question_option_mixin import QuestionOptionModule
 from .input_data_mixin_question_stats import QuestionStatsModule
 from .question_type_mixin import QuestionTypeModule
+from .question_error_logger import QuestionErrorLogger, set_global_logger, log_creation_error
 
 
 class InputDataABC(ABC):
@@ -134,6 +135,10 @@ class InputDataABC(ABC):
             
         # Store verbose flag for use in methods
         self._verbose = False
+        
+        # Initialize question error logger
+        self.question_error_logger = QuestionErrorLogger(datafile_name, verbose=False)
+        set_global_logger(self.question_error_logger)
 
     # Properties for backward compatibility with mixin interface
     @property
@@ -368,9 +373,14 @@ class InputDataABC(ABC):
             rq = self.raw_question(idx)
             q = rq.to_question()
         except Exception as e:
-            import sys
-            print(f"Error with question {question_name} in {self.datafile_name}", file=sys.stderr)
-            print(f"Too few question options (got {getattr(rq, 'options', 'N/A')}). Reverting changes.", file=sys.stderr)
+            # Log error to centralized logger instead of printing to stderr
+            options_info = getattr(rq, 'options', 'N/A') if 'rq' in locals() else 'N/A'
+            self.question_error_logger.log_question_error(
+                question_name=question_name,
+                error_type="Question Type Modification Failed",
+                details=f"Failed to modify question type to '{new_type}'. Too few question options (got {options_info}). Reverting changes.",
+                exception=e
+            )
             self.question_type.question_types[idx] = old_type
             self.question_option.question_options[idx] = old_options
         return self
@@ -558,13 +568,9 @@ class InputDataABC(ABC):
             try:
                 yield rq.to_question()
             except Exception as e:
-                import sys
-                print(
-                    f"Error with question '{rq.question_name}' in '{self.datafile_name}'"
-                    f"\nToo few question options (got {getattr(rq, 'options', 'N/A')}). "
-                    f"Question will be omitted.",
-                    file=sys.stderr
-                )
+                # Log error to centralized logger instead of printing to stderr
+                options_info = getattr(rq, 'options', 'N/A')
+                log_creation_error(rq.question_name, e)
                 yield None
 
     def select(self, *question_names: List[str]) -> "InputData":
@@ -649,6 +655,10 @@ class InputDataABC(ABC):
             console.print(f"[green]✓[/green] Added {valid_questions} valid questions to survey")
             if invalid_questions > 0:
                 console.print(f"[yellow]⚠[/yellow] Skipped {invalid_questions} invalid questions")
+        
+        # Display error summary if there were any question processing errors
+        if self.question_error_logger.has_errors():
+            self.question_error_logger.display_summary()
             
         return s
 

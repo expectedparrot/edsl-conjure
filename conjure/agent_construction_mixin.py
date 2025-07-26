@@ -7,6 +7,11 @@ from edsl.questions import QuestionBase
 from edsl.results import Results
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn
+from rich.table import Table
+from rich.panel import Panel
+import traceback
+import psutil
+import gc
 
 
 class AgentConstructionModule:
@@ -145,187 +150,272 @@ class AgentConstructionModule:
         
         if verbose:
             console.print("[bold blue]Starting survey conversion process...[/bold blue]")
+            
+            # System diagnostics
+            try:
+                process = psutil.Process()
+                memory_info = process.memory_info()
+                console.print(f"[dim]💾 Initial memory usage: {memory_info.rss / 1024 / 1024:.1f} MB[/dim]")
+                console.print(f"[dim]🖥️  CPU count: {psutil.cpu_count()}, Load: {psutil.getloadavg()[0]:.2f}[/dim]" if hasattr(psutil, 'getloadavg') else f"[dim]🖥️  CPU count: {psutil.cpu_count()}[/dim]")
+            except Exception:
+                pass  # Ignore if psutil diagnostics fail
         
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TaskProgressColumn(),
-            TimeRemainingColumn(),
-            console=console,
-            disable=not verbose
-        ) as progress:
+        try:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TaskProgressColumn(),
+                TimeRemainingColumn(),
+                console=console,
+                disable=not verbose
+            ) as progress:
             
-            # Step 1: Create agent list
-            total_agents = sample_size if sample_size else (len(indices) if indices else self.input_data.num_observations)
-            agent_task = progress.add_task("[cyan]Creating agent list...", total=total_agents)
-            
-            if verbose:
-                console.print(f"[dim]Processing {total_agents} agents from {self.input_data.num_observations} total observations in {self.input_data.datafile_name}[/dim]")
-                if sample_size:
-                    console.print(f"[dim]Using random sample of {sample_size} agents with seed '{seed}'[/dim]")
-                elif indices:
-                    console.print(f"[dim]Using specified indices: {len(indices)} agents[/dim]")
-            
-            agent_list = self.to_agent_list(
-                indices=indices,
-                sample_size=sample_size,
-                seed=seed,
-                remove_direct_question_answering_method=False,
-            )
-            progress.update(agent_task, completed=total_agents)
-            
-            # Step 2: Create survey
-            num_questions = len(self.input_data.question_names)
-            survey_task = progress.add_task("[cyan]Creating survey...", total=num_questions)
-            if verbose:
-                console.print(f"[dim]Converting {num_questions} questions to EDSL survey format[/dim]")
-            
-            # Create a progress callback to update the main progress bar
-            def survey_progress_callback(completed):
-                progress.update(survey_task, completed=completed)
-            
-            survey = self.input_data.to_survey(verbose=verbose, progress_callback=survey_progress_callback if verbose else None)
-            progress.update(survey_task, completed=num_questions)
-            
-            # Step 3: Handle dryrun
-            if dryrun:
-                import time
-                
-                DRYRUN_SAMPLE = min(30, len(agent_list))  # Don't sample more than we have
-                dryrun_task = progress.add_task(f"[yellow]Running dryrun ({DRYRUN_SAMPLE} agents)...", total=DRYRUN_SAMPLE)
+                # Step 1: Create agent list
+                total_agents = sample_size if sample_size else (len(indices) if indices else self.input_data.num_observations)
+                agent_task = progress.add_task("[cyan]Creating agent list...", total=total_agents)
                 
                 if verbose:
-                    console.print(f"[dim]Running performance test with {DRYRUN_SAMPLE} agents to estimate timing[/dim]")
+                    console.print(f"[dim]Processing {total_agents} agents from {self.input_data.num_observations} total observations in {self.input_data.datafile_name}[/dim]")
+                    if sample_size:
+                        console.print(f"[dim]Using random sample of {sample_size} agents with seed '{seed}'[/dim]")
+                    elif indices:
+                        console.print(f"[dim]Using specified indices: {len(indices)} agents[/dim]")
+                
+                try:
+                    agent_list = self.to_agent_list(
+                        indices=indices,
+                        sample_size=sample_size,
+                        seed=seed,
+                        remove_direct_question_answering_method=False,
+                    )
+                    progress.update(agent_task, completed=total_agents)
+                    
+                    if verbose:
+                        console.print(f"[green]✓[/green] Created {len(agent_list)} agents successfully")
+                        
+                except Exception as e:
+                    console.print(f"[red]❌ Failed to create agent list: {e}[/red]")
+                    if verbose:
+                        console.print(f"[red]Traceback:[/red]")
+                        console.print(traceback.format_exc())
+                    raise
+            
+                # Step 2: Create survey
+                num_questions = len(self.input_data.question_names)
+                survey_task = progress.add_task("[cyan]Creating survey...", total=num_questions)
+                if verbose:
+                    console.print(f"[dim]Converting {num_questions} questions to EDSL survey format[/dim]")
+                
+                try:
+                    # Create a progress callback to update the main progress bar
+                    def survey_progress_callback(completed):
+                        progress.update(survey_task, completed=completed)
+                    
+                    survey = self.input_data.to_survey(verbose=verbose, progress_callback=survey_progress_callback if verbose else None)
+                    progress.update(survey_task, completed=num_questions)
+                    
+                    if verbose:
+                        valid_questions = len([q for q in survey.questions if q is not None])
+                        console.print(f"[green]✓[/green] Created survey with {valid_questions} valid questions")
+                        
+                        # Memory check after survey creation
+                        try:
+                            process = psutil.Process()
+                            memory_info = process.memory_info()
+                            console.print(f"[dim]💾 Memory after survey creation: {memory_info.rss / 1024 / 1024:.1f} MB[/dim]")
+                        except Exception:
+                            pass
+                            
+                except Exception as e:
+                    console.print(f"[red]❌ Failed to create survey: {e}[/red]")
+                    if verbose:
+                        console.print(f"[red]Traceback:[/red]")
+                        console.print(traceback.format_exc())
+                    raise
+            
+                # Step 3: Handle dryrun
+                if dryrun:
+                    import time
+                    
+                    DRYRUN_SAMPLE = min(30, len(agent_list))  # Don't sample more than we have
+                    dryrun_task = progress.add_task(f"[yellow]Running dryrun ({DRYRUN_SAMPLE} agents)...", total=DRYRUN_SAMPLE)
+                    
+                    if verbose:
+                        console.print(f"[dim]Running performance test with {DRYRUN_SAMPLE} agents to estimate timing[/dim]")
 
-                start = time.time()
-                _ = survey.by(agent_list.sample(DRYRUN_SAMPLE)).run(
-                    disable_remote_cache=disable_remote_cache,
-                    disable_remote_inference=disable_remote_inference,
-                )
-                end = time.time()
-                
-                progress.update(dryrun_task, completed=DRYRUN_SAMPLE)
-                
-                elapsed_time = end - start
-                time_per_agent = elapsed_time / DRYRUN_SAMPLE
-                full_sample_time = time_per_agent * len(agent_list)
-                
-                console.print(f"[green]✓[/green] Dryrun completed: {DRYRUN_SAMPLE} agents in {elapsed_time:.2f}s ({time_per_agent:.2f}s per agent)")
-                
-                # Enhanced time estimates with better formatting
-                if full_sample_time < 60:
-                    console.print(f"[bold yellow]📊 Estimated time for all {len(agent_list)} agents: {full_sample_time:.1f} seconds[/bold yellow]")
-                elif full_sample_time < 3600:
-                    console.print(f"[bold yellow]📊 Estimated time for all {len(agent_list)} agents: {full_sample_time / 60:.1f} minutes[/bold yellow]")
-                else:
-                    console.print(f"[bold yellow]📊 Estimated time for all {len(agent_list)} agents: {full_sample_time / 3600:.1f} hours[/bold yellow]")
-                
-                console.print(f"[dim]Use --sample to reduce the number of agents if this seems too long[/dim]")
-                return None
+                    try:
+                        start = time.time()
+                        dryrun_results = survey.by(agent_list.sample(DRYRUN_SAMPLE)).run(
+                            disable_remote_cache=disable_remote_cache,
+                            disable_remote_inference=disable_remote_inference,
+                        )
+                        end = time.time()
+                        
+                        progress.update(dryrun_task, completed=DRYRUN_SAMPLE)
+                        
+                        elapsed_time = end - start
+                        time_per_agent = elapsed_time / DRYRUN_SAMPLE
+                        full_sample_time = time_per_agent * len(agent_list)
+                        
+                        console.print(f"[green]✓[/green] Dryrun completed: {DRYRUN_SAMPLE} agents in {elapsed_time:.2f}s ({time_per_agent:.2f}s per agent)")
+                        
+                        if verbose and dryrun_results:
+                            console.print(f"[dim]Dryrun produced {len(dryrun_results)} result records[/dim]")
+                        
+                        # Enhanced time estimates with better formatting
+                        if full_sample_time < 60:
+                            console.print(f"[bold yellow]📊 Estimated time for all {len(agent_list)} agents: {full_sample_time:.1f} seconds[/bold yellow]")
+                        elif full_sample_time < 3600:
+                            console.print(f"[bold yellow]📊 Estimated time for all {len(agent_list)} agents: {full_sample_time / 60:.1f} minutes[/bold yellow]")
+                        else:
+                            console.print(f"[bold yellow]📊 Estimated time for all {len(agent_list)} agents: {full_sample_time / 3600:.1f} hours[/bold yellow]")
+                        
+                        console.print(f"[dim]Use --sample to reduce the number of agents if this seems too long[/dim]")
+                        return None
+                        
+                    except Exception as e:
+                        console.print(f"[red]❌ Dryrun failed: {e}[/red]")
+                        if verbose:
+                            console.print(f"[red]Traceback:[/red]")
+                            console.print(traceback.format_exc())
+                        raise
             
-            # Step 4: Run the actual survey
-            run_task = progress.add_task(f"[green]Running survey ({len(agent_list)} agents)...", total=len(agent_list))
-            
-            # If we have more than 10 agents and verbose is enabled, do a timing estimate
-            if len(agent_list) > 10 and verbose:
-                import time
+                # Step 4: Run the actual survey
+                run_task = progress.add_task(f"[green]Running survey ({len(agent_list)} agents)...", total=len(agent_list))
                 
-                console.print(f"[dim]Running timing sample with first 10 agents out of {len(agent_list)}[/dim]")
-                
-                # Time the first 10 agents
-                start_time = time.time()
-                sample_results = survey.by(agent_list[:10]).run(
-                    disable_remote_cache=disable_remote_cache,
-                    disable_remote_inference=disable_remote_inference,
-                )
-                end_time = time.time()
-                
-                # Calculate timing estimates
-                sample_time = end_time - start_time
-                time_per_agent = sample_time / 10
-                estimated_total_time = time_per_agent * len(agent_list)
-                
-                # Update progress for completed sample
-                progress.update(run_task, completed=10)
-                
-                console.print(f"[green]✓[/green] Sample of 10 agents completed in {sample_time:.2f}s")
-                console.print(f"[dim]Performance: {time_per_agent:.2f}s per agent[/dim]")
-                
-                if estimated_total_time < 60:
-                    console.print(f"[yellow]🕒 Estimated total time: {estimated_total_time:.1f} seconds[/yellow]")
-                elif estimated_total_time < 3600:
-                    console.print(f"[yellow]🕒 Estimated total time: {estimated_total_time / 60:.1f} minutes[/yellow]")
-                else:
-                    console.print(f"[yellow]🕒 Estimated total time: {estimated_total_time / 3600:.1f} hours[/yellow]")
-                
-                # Calculate estimated time for remaining agents
-                remaining_agents = len(agent_list) - 10
-                estimated_remaining_time = time_per_agent * remaining_agents
-                
-                if estimated_remaining_time < 60:
-                    time_display = f"{estimated_remaining_time:.1f} seconds"
-                elif estimated_remaining_time < 3600:
-                    time_display = f"{estimated_remaining_time / 60:.1f} minutes"
-                else:
-                    time_display = f"{estimated_remaining_time / 3600:.1f} hours"
-                
-                console.print(f"[dim]Now running full survey with remaining {remaining_agents} agents (estimated time: {time_display})[/dim]")
-                
-                # Start full survey timer
-                full_survey_start = time.time()
-                
-                # Run the remaining agents
-                remaining_results = survey.by(agent_list[10:]).run(
-                    disable_remote_cache=disable_remote_cache,
-                    disable_remote_inference=disable_remote_inference,
-                )
-                
-                # Calculate total elapsed time
-                total_elapsed = time.time() - full_survey_start + sample_time
-                if total_elapsed < 60:
-                    console.print(f"[green]✓[/green] Total elapsed time: {total_elapsed:.1f} seconds")
-                elif total_elapsed < 3600:
-                    console.print(f"[green]✓[/green] Total elapsed time: {total_elapsed / 60:.1f} minutes")
-                else:
-                    console.print(f"[green]✓[/green] Total elapsed time: {total_elapsed / 3600:.1f} hours")
-                
-                # Update progress for completed agents
-                progress.update(run_task, completed=len(agent_list))
-                
-                # Combine results
-                results = sample_results + remaining_results
-                
-            else:
+                # Additional diagnostics before running survey
                 if verbose:
-                    console.print(f"[dim]Running survey with {len(agent_list)} agents[/dim]")
+                    console.print(f"[dim]🔧 Survey configuration:[/dim]")
+                    console.print(f"[dim]   • Questions: {len(survey.questions)}[/dim]")
+                    console.print(f"[dim]   • Agents: {len(agent_list)}[/dim]")
+                    console.print(f"[dim]   • Disable remote cache: {disable_remote_cache}[/dim]")
+                    console.print(f"[dim]   • Disable remote inference: {disable_remote_inference}[/dim]")
                 
-                # Start timer for full survey
-                import time
-                survey_start = time.time()
-                
-                results = survey.by(agent_list).run(
-                    disable_remote_cache=disable_remote_cache,
-                    disable_remote_inference=disable_remote_inference,
-                )
-                
-                # Update progress and calculate elapsed time
-                progress.update(run_task, completed=len(agent_list))
-                elapsed = time.time() - survey_start
-                
-                if verbose:
-                    if elapsed < 60:
-                        console.print(f"[green]✓[/green] Total elapsed time: {elapsed:.1f} seconds")
-                    elif elapsed < 3600:
-                        console.print(f"[green]✓[/green] Total elapsed time: {elapsed / 60:.1f} minutes")
+                # If we have more than 10 agents and verbose is enabled, do a timing estimate
+                if len(agent_list) > 10 and verbose:
+                    import time
+                    
+                    console.print(f"[dim]Running timing sample with first 10 agents out of {len(agent_list)}[/dim]")
+                    
+                    # Time the first 10 agents
+                    start_time = time.time()
+                    sample_results = survey.by(agent_list[:10]).run(
+                        disable_remote_cache=disable_remote_cache,
+                        disable_remote_inference=disable_remote_inference,
+                    )
+                    end_time = time.time()
+                    
+                    # Calculate timing estimates
+                    sample_time = end_time - start_time
+                    time_per_agent = sample_time / 10
+                    estimated_total_time = time_per_agent * len(agent_list)
+                    
+                    # Update progress for completed sample
+                    progress.update(run_task, completed=10)
+                    
+                    console.print(f"[green]✓[/green] Sample of 10 agents completed in {sample_time:.2f}s")
+                    console.print(f"[dim]Performance: {time_per_agent:.2f}s per agent[/dim]")
+                    
+                    if estimated_total_time < 60:
+                        console.print(f"[yellow]🕒 Estimated total time: {estimated_total_time:.1f} seconds[/yellow]")
+                    elif estimated_total_time < 3600:
+                        console.print(f"[yellow]🕒 Estimated total time: {estimated_total_time / 60:.1f} minutes[/yellow]")
                     else:
-                        console.print(f"[green]✓[/green] Total elapsed time: {elapsed / 3600:.1f} hours")
+                        console.print(f"[yellow]🕒 Estimated total time: {estimated_total_time / 3600:.1f} hours[/yellow]")
+                    
+                    # Calculate estimated time for remaining agents
+                    remaining_agents = len(agent_list) - 10
+                    estimated_remaining_time = time_per_agent * remaining_agents
+                    
+                    if estimated_remaining_time < 60:
+                        time_display = f"{estimated_remaining_time:.1f} seconds"
+                    elif estimated_remaining_time < 3600:
+                        time_display = f"{estimated_remaining_time / 60:.1f} minutes"
+                    else:
+                        time_display = f"{estimated_remaining_time / 3600:.1f} hours"
+                    
+                    console.print(f"[dim]Now running full survey with remaining {remaining_agents} agents (estimated time: {time_display})[/dim]")
+                    
+                    # Start full survey timer
+                    full_survey_start = time.time()
+                    
+                    # Run the remaining agents
+                    remaining_results = survey.by(agent_list[10:]).run(
+                        disable_remote_cache=disable_remote_cache,
+                        disable_remote_inference=disable_remote_inference,
+                    )
+                    
+                    # Calculate total elapsed time
+                    total_elapsed = time.time() - full_survey_start + sample_time
+                    if total_elapsed < 60:
+                        console.print(f"[green]✓[/green] Total elapsed time: {total_elapsed:.1f} seconds")
+                    elif total_elapsed < 3600:
+                        console.print(f"[green]✓[/green] Total elapsed time: {total_elapsed / 60:.1f} minutes")
+                    else:
+                        console.print(f"[green]✓[/green] Total elapsed time: {total_elapsed / 3600:.1f} hours")
+                    
+                    # Update progress for completed agents
+                    progress.update(run_task, completed=len(agent_list))
+                    
+                    # Combine results
+                    results = sample_results + remaining_results
+                
+                else:
+                    if verbose:
+                        console.print(f"[dim]Running survey with {len(agent_list)} agents[/dim]")
+                    
+                    # Start timer for full survey
+                    import time
+                    survey_start = time.time()
+                    
+                    results = survey.by(agent_list).run(
+                        disable_remote_cache=disable_remote_cache,
+                        disable_remote_inference=disable_remote_inference,
+                    )
+                
+                    # Update progress and calculate elapsed time
+                    progress.update(run_task, completed=len(agent_list))
+                    elapsed = time.time() - survey_start
+                    
+                    if verbose:
+                        if elapsed < 60:
+                            console.print(f"[green]✓[/green] Total elapsed time: {elapsed:.1f} seconds")
+                        elif elapsed < 3600:
+                            console.print(f"[green]✓[/green] Total elapsed time: {elapsed / 60:.1f} minutes")
+                        else:
+                            console.print(f"[green]✓[/green] Total elapsed time: {elapsed / 3600:.1f} hours")
             
+                if verbose:
+                    console.print("[bold green]✓ Survey conversion completed successfully![/bold green]")
+                    console.print(f"[dim]Final results contain {len(results)} agent responses[/dim]")
+                    
+                    # Final memory check
+                    try:
+                        process = psutil.Process()
+                        memory_info = process.memory_info()
+                        console.print(f"[dim]💾 Final memory usage: {memory_info.rss / 1024 / 1024:.1f} MB[/dim]")
+                    except Exception:
+                        pass
+                
+                return results
+                
+        except KeyboardInterrupt:
+            console.print("[yellow]⚠ Process interrupted by user[/yellow]")
+            raise
+        except Exception as e:
+            console.print(f"[red]❌ Fatal error in survey conversion: {e}[/red]")
             if verbose:
-                console.print("[bold green]✓ Survey conversion completed successfully![/bold green]")
-                console.print(f"[dim]Final results contain {len(results)} agent responses[/dim]")
-            
-            return results
+                console.print(f"[red]Full traceback:[/red]")
+                console.print(traceback.format_exc())
+                
+                # Emergency memory cleanup
+                try:
+                    gc.collect()
+                    console.print("[dim]🧹 Performed garbage collection[/dim]")
+                except Exception:
+                    pass
+            raise
 
 
 if __name__ == "__main__":
