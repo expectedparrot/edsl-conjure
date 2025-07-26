@@ -30,7 +30,7 @@ app = typer.Typer()
 def main(
     file_path: Optional[Path] = typer.Argument(None, help="Path to the input survey data file (or stdin if not provided)"),
     json_gz_filename: Optional[str] = typer.Option(None, "--json-gz-filename", help="Save results to compressed JSON file"),
-    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output"),
+    silent: bool = typer.Option(False, "--silent", "-s", help="Disable verbose output"),
     sample: Optional[int] = typer.Option(None, "--sample", help="Sample size to use instead of processing all agents"),
     data_dictionary_csv: Optional[Path] = typer.Option(None, "--data-dictionary-csv", help="Path to CSV file containing question names and texts"),
     question_name_column: str = typer.Option("question_name", "--question-name-column", help="Column name or index (0-based) for question names in data dictionary CSV"),
@@ -97,13 +97,13 @@ def main(
             file_path = Path(temp_file.name)
             cleanup_temp_file = True
             
-            if verbose:
+            if not silent:
                 console.print("[blue]Processing data from stdin[/blue]")
                 console.print(f"[dim]Temporary file: {file_path}[/dim]")
         else:
             cleanup_temp_file = False
         
-        if verbose:
+        if not silent:
             console.print(f"[blue]Processing file:[/blue] {file_path}")
             console.print(f"[dim]File type: {file_path.suffix}[/dim]")
         
@@ -111,12 +111,12 @@ def main(
         question_texts = None
         if data_dictionary_csv:
             try:
-                if verbose:
+                if not silent:
                     console.print(f"[blue]Loading data dictionary:[/blue] {data_dictionary_csv}")
                 
                 dict_df = pd.read_csv(data_dictionary_csv, encoding='latin-1')
                 
-                if verbose:
+                if not silent:
                     console.print(f"[dim]Data dictionary shape: {dict_df.shape}[/dim]")
                     console.print(f"[dim]Data dictionary columns: {list(dict_df.columns)}[/dim]")
                 
@@ -144,7 +144,7 @@ def main(
                     if pd.notna(name) and pd.notna(text):
                         question_name_to_text[str(name).lower()] = str(text)
                 
-                if verbose:
+                if not silent:
                     console.print(f"[dim]Loaded {len(question_name_to_text)} question mappings[/dim]")
                 
                 # Store the mapping for later use
@@ -158,7 +158,7 @@ def main(
         conjure_instance = Conjure(str(file_path), question_names_to_question_text=question_texts)
         
         # Add diagnostics about data dictionary usage
-        if data_dictionary_csv and question_texts and verbose:
+        if data_dictionary_csv and question_texts and not silent:
             # Get actual column names from the data file (convert to lowercase for case-insensitive matching)
             actual_columns = set(name.lower() for name in conjure_instance.question_names)
             dict_questions = set(question_texts.keys())  # Already lowercase from above
@@ -191,31 +191,31 @@ def main(
                     
             match_rate = (len(matched_questions) / len(dict_questions)) * 100 if dict_questions else 0
             console.print(f"  📈 Dictionary match rate: {match_rate:.1f}%")
-        elif data_dictionary_csv and verbose:
+        elif data_dictionary_csv and not silent:
             if not question_texts:
                 console.print(f"[yellow]Warning: Data dictionary CSV was provided but no question texts were loaded[/yellow]")
         
         # Store verbose flag for later use
-        conjure_instance._verbose = verbose
+        conjure_instance._verbose = not silent
         
-        if verbose:
+        if not silent:
             console.print(f"[dim]Created conjure instance of type: {type(conjure_instance).__name__}[/dim]")
         
         # Get results
-        results = conjure_instance.to_results(verbose=verbose, sample_size=sample)
+        results = conjure_instance.to_results(verbose=not silent, sample_size=sample)
         
         # Handle output
         if json_gz_filename:
             # Save to compressed JSON file
             results.save(json_gz_filename)
-            if verbose:
+            if not silent:
                 console.print(f"[green]✓[/green] Results saved to {json_gz_filename}")
         else:
             # Output JSON to stdout
             results_dict = results.to_dict(add_edsl_version=True)
             print(json.dumps(results_dict, indent=2))
         
-        if verbose:
+        if not silent:
             console.print("[green]✓[/green] File processed successfully")
         
     except ValueError as e:
