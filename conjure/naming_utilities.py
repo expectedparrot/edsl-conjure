@@ -181,15 +181,18 @@ stop_words = {
     "a",
     "was",
     "doing",
+    # Additional stop words for question naming
+    "explain",
+    "please",
 }
 
 
 def sanitize_string(input_string, max_length=35):
     """Return a sanitized version of the input string that can be used as a variable name.
 
-    >>> candidate_names = ["How are you doing this morning, Dave? What is your favorite kind of coffee?", "class", "def", "here_is_some_text"]
+    >>> candidate_names = ["How are you doing this morning, Dave? What is your favorite kind of coffee?", "class", "def", "here_is_some_text", "Please explain the 5 main points", "You should consider option 2"]
     >>> [sanitize_string(name) for name in candidate_names]
-    ['morning_dave_favorite_kind_coffee', 'class_modified', 'def_modified', 'here_is_some_text']
+    ['morning_dave_favorite_kind_coffee', 'class_modified', 'def_modified', 'here_is_some_text', 'main_points', 'consider_option']
     """
 
     # Ensure nltk stopwords are downloaded
@@ -213,8 +216,8 @@ def sanitize_string(input_string, max_length=35):
     # Replace special characters with spaces and split into words
     words = re.sub(r"\W+", " ", input_string).split()
 
-    # Remove stopwords
-    important_words = [word for word in words if word.lower() not in stop_words]
+    # Remove stopwords and numbers
+    important_words = [word for word in words if word.lower() not in stop_words and not word.isdigit()]
 
     # Join words with underscores
     sanitized_string = "_".join(important_words)
