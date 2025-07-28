@@ -58,6 +58,7 @@ class InputDataABC(ABC):
         question_options: Optional[List] = None,
         order_options=False,
         question_name_repair_func: Callable = None,
+        question_edits: Optional[Callable] = None,
     ):
         """Initialize the InputData object.
 
@@ -139,6 +140,24 @@ class InputDataABC(ABC):
         # Initialize question error logger
         self.question_error_logger = QuestionErrorLogger(datafile_name, verbose=False)
         set_global_logger(self.question_error_logger)
+        
+        # Apply question edits if provided
+        if question_edits is not None:
+            edited_instance = question_edits(self)
+            # Copy the edited instance's attributes back to self
+            self._copy_from_instance(edited_instance)
+
+    def _copy_from_instance(self, other_instance: "InputDataABC") -> None:
+        """Copy attributes from another InputData instance to self."""
+        self.question_names = other_instance.question_names
+        self.question_texts = other_instance.question_texts
+        self.question_names_to_question_text = other_instance.question_names_to_question_text
+        self.answer_codebook = other_instance.answer_codebook
+        self.raw_data = other_instance.raw_data
+        
+        # Copy module attributes
+        self.question_type.question_types = other_instance.question_type.question_types
+        self.question_option.question_options = other_instance.question_option.question_options
 
     # Properties for backward compatibility with mixin interface
     @property
@@ -767,6 +786,232 @@ class InputDataABC(ABC):
                     self.answer_codebook[qn].get(r, r) for r in self.raw_data[index]
                 ]
                 self.raw_data[index] = new_responses
+
+    def with_edited_question(self, question_name: str, edits: Dict, pop_fields: Optional[List[str]] = None) -> "InputDataABC":
+        """Edit a question's attributes and return a new InputData instance.
+        
+        :param question_name: The name of the question to edit
+        :param edits: Dictionary of attribute changes to apply
+        :param pop_fields: List of fields to remove from the question
+        :return: New InputData instance with the edited question
+        
+        Example:
+            >>> id = InputDataABC.example()
+            >>> # Edit question options
+            >>> edited = id.with_edited_question('morning', {'question_options': [1,2,3,4,5]})
+            >>> # Change question type and remove options
+            >>> edited = id.with_edited_question('morning', {'question_type': 'free_text'}, pop_fields=['question_options'])
+        """
+        if question_name not in self.question_names:
+            raise ValueError(f"Question '{question_name}' not found in question names")
+        
+        idx = self.question_names.index(question_name)
+        
+        # Create copies of all the current data
+        new_question_names = self.question_names.copy()
+        new_question_texts = self.question_texts.copy()
+        new_question_types = self.question_type.question_types.copy() if self.question_type.question_types else None
+        new_question_options = self.question_option.question_options.copy() if self.question_option.question_options else None
+        new_raw_data = [data.copy() for data in self.raw_data]
+        new_answer_codebook = self.answer_codebook.copy() if self.answer_codebook else None
+        
+        # Apply edits
+        if 'question_text' in edits:
+            new_question_texts[idx] = edits['question_text']
+        
+        if 'question_type' in edits and new_question_types:
+            new_question_types[idx] = edits['question_type']
+        
+        if 'question_options' in edits and new_question_options:
+            new_question_options[idx] = edits['question_options']
+        
+        # Handle pop_fields
+        if pop_fields:
+            if 'question_options' in pop_fields and new_question_options:
+                new_question_options[idx] = None
+        
+        return self.__class__(
+            self.datafile_name,
+            config=self.config,
+            naming_function=self.naming_function,
+            raw_data=new_raw_data,
+            question_names=new_question_names,
+            question_texts=new_question_texts,
+            question_names_to_question_text=self.question_names_to_question_text,
+            answer_codebook=new_answer_codebook,
+            question_types=new_question_types,
+            question_options=new_question_options,
+            question_name_repair_func=self.question_name_repair_func,
+        )
+
+    def with_renamed_question(self, old_name: str, new_name: str) -> "InputDataABC":
+        """Rename a question and return a new InputData instance.
+        
+        :param old_name: The current name of the question
+        :param new_name: The new name for the question
+        :return: New InputData instance with the renamed question
+        
+        Example:
+            >>> id = InputDataABC.example()
+            >>> renamed = id.with_renamed_question('morning', 'morning_greeting')
+        """
+        if old_name not in self.question_names:
+            raise ValueError(f"Question '{old_name}' not found in question names")
+        
+        idx = self.question_names.index(old_name)
+        
+        # Create copies of all the current data
+        new_question_names = self.question_names.copy()
+        new_question_names[idx] = new_name
+        
+        new_question_texts = self.question_texts.copy()
+        new_question_types = self.question_type.question_types.copy() if self.question_type.question_types else None
+        new_question_options = self.question_option.question_options.copy() if self.question_option.question_options else None
+        new_raw_data = [data.copy() for data in self.raw_data]
+        
+        # Update answer_codebook if it exists
+        new_answer_codebook = None
+        if self.answer_codebook:
+            new_answer_codebook = self.answer_codebook.copy()
+            if old_name in new_answer_codebook:
+                new_answer_codebook[new_name] = new_answer_codebook.pop(old_name)
+        
+        # Update question_names_to_question_text if it exists
+        new_question_names_to_question_text = None
+        if self.question_names_to_question_text:
+            new_question_names_to_question_text = self.question_names_to_question_text.copy()
+            if old_name in new_question_names_to_question_text:
+                new_question_names_to_question_text[new_name] = new_question_names_to_question_text.pop(old_name)
+        
+        return self.__class__(
+            self.datafile_name,
+            config=self.config,
+            naming_function=self.naming_function,
+            raw_data=new_raw_data,
+            question_names=new_question_names,
+            question_texts=new_question_texts,
+            question_names_to_question_text=new_question_names_to_question_text,
+            answer_codebook=new_answer_codebook,
+            question_types=new_question_types,
+            question_options=new_question_options,
+            question_name_repair_func=self.question_name_repair_func,
+        )
+
+    def drop(self, *question_names: str) -> "InputDataABC":
+        """Remove questions and return a new InputData instance.
+        
+        :param question_names: Names of questions to remove
+        :return: New InputData instance without the specified questions
+        
+        Example:
+            >>> id = InputDataABC.example()
+            >>> reduced = id.drop('morning', 'feeling')
+        """
+        # Find indices of questions to keep
+        keep_indices = [i for i, name in enumerate(self.question_names) if name not in question_names]
+        
+        if not keep_indices:
+            raise ValueError("Cannot drop all questions")
+        
+        # Create new data with only the questions to keep
+        new_question_names = [self.question_names[i] for i in keep_indices]
+        new_question_texts = [self.question_texts[i] for i in keep_indices]
+        new_raw_data = [self.raw_data[i] for i in keep_indices]
+        
+        new_question_types = None
+        if self.question_type.question_types:
+            new_question_types = [self.question_type.question_types[i] for i in keep_indices]
+        
+        new_question_options = None
+        if self.question_option.question_options:
+            new_question_options = [self.question_option.question_options[i] for i in keep_indices]
+        
+        # Filter answer_codebook
+        new_answer_codebook = None
+        if self.answer_codebook:
+            new_answer_codebook = {name: self.answer_codebook[name] for name in new_question_names if name in self.answer_codebook}
+        
+        # Filter question_names_to_question_text
+        new_question_names_to_question_text = None
+        if self.question_names_to_question_text:
+            new_question_names_to_question_text = {name: self.question_names_to_question_text[name] for name in new_question_names if name in self.question_names_to_question_text}
+        
+        return self.__class__(
+            self.datafile_name,
+            config=self.config,
+            naming_function=self.naming_function,
+            raw_data=new_raw_data,
+            question_names=new_question_names,
+            question_texts=new_question_texts,
+            question_names_to_question_text=new_question_names_to_question_text,
+            answer_codebook=new_answer_codebook,
+            question_types=new_question_types,
+            question_options=new_question_options,
+            question_name_repair_func=self.question_name_repair_func,
+        )
+
+    def edit_question(self, question_name: str, edits: Dict, pop_fields: Optional[List[str]] = None) -> "InputDataABC":
+        """Edit a question's attributes in-place and return self for chaining.
+        
+        :param question_name: The name of the question to edit
+        :param edits: Dictionary of attribute changes to apply
+        :param pop_fields: List of fields to remove from the question
+        :return: Self for method chaining
+        
+        Example:
+            >>> id = InputDataABC.example()
+            >>> id.edit_question('morning', {'question_options': [1,2,3,4,5]})
+            >>> # Can be chained
+            >>> id.edit_question('morning', {'question_type': 'free_text'}).edit_question('feeling', {'question_text': 'How do you feel?'})
+        """
+        edited_instance = self.with_edited_question(question_name, edits, pop_fields)
+        self._copy_from_instance(edited_instance)
+        return self
+
+    def rename_question(self, old_name: str, new_name: str) -> "InputDataABC":
+        """Rename a question in-place and return self for chaining.
+        
+        :param old_name: The current name of the question
+        :param new_name: The new name for the question
+        :return: Self for method chaining
+        
+        Example:
+            >>> id = InputDataABC.example()
+            >>> id.rename_question('morning', 'morning_greeting')
+        """
+        renamed_instance = self.with_renamed_question(old_name, new_name)
+        self._copy_from_instance(renamed_instance)
+        return self
+
+    def drop_questions(self, *question_names: str) -> "InputDataABC":
+        """Remove questions in-place and return self for chaining.
+        
+        :param question_names: Names of questions to remove
+        :return: Self for method chaining
+        
+        Example:
+            >>> id = InputDataABC.example()
+            >>> id.drop_questions('morning', 'feeling')
+        """
+        dropped_instance = self.drop(*question_names)
+        self._copy_from_instance(dropped_instance)
+        return self
+
+    def apply_question_edits(self, edit_function: Callable) -> "InputDataABC":
+        """Apply a function that edits questions and update self in-place.
+        
+        :param edit_function: Function that takes an InputData instance and returns an edited one
+        :return: Self for method chaining
+        
+        Example:
+            >>> def my_edits(data):
+            ...     return data.with_edited_question('morning', {'question_options': [1,2,3]}).drop('feeling')
+            >>> id = InputDataABC.example()
+            >>> id.apply_question_edits(my_edits)
+        """
+        edited_instance = edit_function(self)
+        self._copy_from_instance(edited_instance)
+        return self
 
     def __repr__(self):
         return f"{self.__class__.__name__}: datafile_name:'{self.datafile_name}' num_questions:{len(self.question_names)}, num_observations:{len(self.raw_data[0])}"
