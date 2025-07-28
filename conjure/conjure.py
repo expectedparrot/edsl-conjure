@@ -11,7 +11,7 @@ class Conjure:
         if isinstance(datafile_name, FileStore):
             import tempfile
             with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-                datafile_name.write(temp_file.name + "." + datafile_name.file_type)
+                datafile_name.write(temp_file.name + "." + datafile_name.suffix)
                 datafile_name = temp_file.name
 
         handlers = {
