@@ -20,9 +20,11 @@ class Conjure:
             "dta": InputDataStata,
         }
 
-        handler = handlers.get(datafile_name.split(".")[-1])
+        file_type = datafile_name.split(".")[-1]
+
+        handler = handlers.get(file_type)
         if handler is None:
-            raise ValueError("Unsupported file type")
+            raise ValueError(f"Unsupported file type: {file_type}")
         
         instance = handler(datafile_name, *args, **kwargs)
         return instance
