@@ -1,12 +1,18 @@
-from typing import List, Optional, Dict, Callable
-
+from typing import List, Optional, Dict, Callable, Union
+from edsl import FileStore
 
 class Conjure:
-    def __new__(cls, datafile_name: str, *args, **kwargs):
+    def __new__(cls, datafile_name: Union[str, FileStore], *args, **kwargs):
 
         from .input_data_csv import InputDataCSV
         from .input_data_spss import InputDataSPSS
         from .input_data_stata import InputDataStata
+
+        if isinstance(datafile_name, FileStore):
+            import tempfile
+            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                datafile_name.write(temp_file.name + "." + datafile_name.file_type)
+                datafile_name = temp_file.name
 
         handlers = {
             "csv": InputDataCSV,

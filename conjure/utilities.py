@@ -109,8 +109,11 @@ class Missing:
         return "missing"
 
 
+# Cache for convert_value to avoid repeated conversions
+_convert_value_cache = {}
+
 def convert_value(x):
-    """Takes a string and tries to convert it.
+    """Takes a string and tries to convert it with caching for performance.
 
     >>> convert_value('1')
     1
@@ -126,23 +129,33 @@ def convert_value(x):
     'missing'
 
     """
+    # Use cache for performance - many duplicate values in surveys
+    if x in _convert_value_cache:
+        return _convert_value_cache[x]
+    
+    # Original conversion logic
     try:
         float_val = float(x)
         # Check for NaN or infinite values which are not JSON serializable
         if float_val != float_val or float_val == float('inf') or float_val == float('-inf'):
-            return Missing().value()
-        if float_val.is_integer():
-            return int(float_val)
+            result = Missing().value()
+        elif float_val.is_integer():
+            result = int(float_val)
         else:
-            return float_val
+            result = float_val
     except ValueError:
         if len(x) == 0:
-            return Missing().value()
+            result = Missing().value()
         else:
             # Handle common representations of missing values
             if str(x).lower() in ['nan', 'null', 'none', 'n/a']:
-                return Missing().value()
-            return str(x)
+                result = Missing().value()
+            else:
+                result = str(x)
+    
+    # Cache the result for future calls
+    _convert_value_cache[x] = result
+    return result
 
 
 # class RCodeSnippet:

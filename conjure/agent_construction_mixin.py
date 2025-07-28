@@ -346,14 +346,18 @@ class AgentConstructionModule:
                         disable_remote_inference=disable_remote_inference,
                     )
                     
-                    # Calculate total elapsed time
+                    # Calculate total elapsed time and throughput
                     total_elapsed = time.time() - full_survey_start + sample_time
+                    throughput = len(agent_list) / total_elapsed if total_elapsed > 0 else 0
+                    
                     if total_elapsed < 60:
                         console.print(f"[green]✓[/green] Total elapsed time: {total_elapsed:.1f} seconds")
                     elif total_elapsed < 3600:
                         console.print(f"[green]✓[/green] Total elapsed time: {total_elapsed / 60:.1f} minutes")
                     else:
                         console.print(f"[green]✓[/green] Total elapsed time: {total_elapsed / 3600:.1f} hours")
+                    
+                    console.print(f"[blue]📊 Throughput: {throughput:.1f} agents/second[/blue]")
                     
                     # Update progress for completed agents
                     progress.update(run_task, completed=len(agent_list))
@@ -374,9 +378,10 @@ class AgentConstructionModule:
                         disable_remote_inference=disable_remote_inference,
                     )
                 
-                    # Update progress and calculate elapsed time
+                    # Update progress and calculate elapsed time and throughput
                     progress.update(run_task, completed=len(agent_list))
                     elapsed = time.time() - survey_start
+                    throughput = len(agent_list) / elapsed if elapsed > 0 else 0
                     
                     if verbose:
                         if elapsed < 60:
@@ -385,6 +390,8 @@ class AgentConstructionModule:
                             console.print(f"[green]✓[/green] Total elapsed time: {elapsed / 60:.1f} minutes")
                         else:
                             console.print(f"[green]✓[/green] Total elapsed time: {elapsed / 3600:.1f} hours")
+                        
+                        console.print(f"[blue]📊 Throughput: {throughput:.1f} agents/second[/blue]")
             
                 if verbose:
                     console.print("[bold green]✓ Survey conversion completed successfully![/bold green]")

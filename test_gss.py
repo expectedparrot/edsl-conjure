@@ -7,7 +7,7 @@ if not os.path.exists("GSS2024.dta"):
     fs.write("GSS2024.dta")
 
 gss = Conjure("GSS2024.dta")
-results = gss.to_results(verbose = True, sample_size = 100)
+results = gss.to_results(verbose = True, sample_size = 1000)
 
 
 
